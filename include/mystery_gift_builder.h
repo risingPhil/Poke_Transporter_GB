@@ -3,7 +3,6 @@
 
 #include <tonc.h>
 #include "pokemon_party.h"
-#include "debug_mode.h"
 #include "save_data_manager.h"
 #include "script_var.h"
 #include "pokemon_data.h"

@@ -1,7 +1,6 @@
 #include <tonc.h>
 #include <cstring>
 #include "sprite_data.h"
-#include "debug_mode.h"
 #include "gba_rom_values/base_gba_rom_struct.h"
 #include "global_frame_controller.h"
 

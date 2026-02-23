@@ -18,14 +18,6 @@ CMD_GOALS := $(filter-out build,$(MAKECMDGOALS))
 LANG_INDEX := $(shell echo $(BUILD_LANGS) | tr ' ' '\n' | nl -v0 | grep -w $(BUILD_LANG) | awk '{print $$1 + 1}')
 TYPE_INDEX := $(shell echo $(BUILD_TYPES) | tr ' ' '\n' | nl -v0 | grep -w $(BUILD_TYPE) | awk '{print $$1}')
 
-CPPFLAGS   += -DPTGB_BUILD_LANGUAGE=$(LANG_INDEX)
-CPPFLAGS   += -DDEBUG_MODE=$(TYPE_INDEX)
-CPPFLAGS   += -DBUILD_INFO=\"$(GIT_FULL)\"
-
-CFLAGS += $(CPPFLAGS)
-CXXFLAGS += $(CPPFLAGS)
-
-
 #---------------------------------------------------------------------------------
 .SUFFIXES:
 #---------------------------------------------------------------------------------
@@ -36,9 +28,12 @@ endif
 
 include $(DEVKITARM)/gba_rules
 
-# The directory this makefile is located in.
-# This is relevant when the second stage of this Makefile is called from the build directory.
-MKFILE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+
+# Set and export PROJECT_ROOT for robust config inclusion
+# We need this to ensure that Makefile.cfg is included from the project root, 
+# regardless of the current working directory when make is invoked
+PROJECT_ROOT ?= $(CURDIR)
+export PROJECT_ROOT
 
 #---------------------------------------------------------------------------------
 # the LIBGBA path is defined in gba_rules, but we have to define LIBTONC ourselves
@@ -83,9 +78,18 @@ ifeq ($(BUILD_TYPE), debug)
 	CFLAGS += -g -DDEBUG
 	CXXFLAGS += -g -DDEBUG
 else ifeq ($(BUILD_TYPE), release)
-
-
 endif
+
+DEBUG_MODE := $(if $(filter debug,$(BUILD_TYPE)),1,0)
+
+# Always include Makefile.cfg from project root
+ifneq (,$(wildcard $(PROJECT_ROOT)/Makefile.cfg))
+include $(PROJECT_ROOT)/Makefile.cfg
+endif
+
+CFLAGS += $(BUILDOPTS)
+CXXFLAGS += $(BUILDOPTS)
+CPPFLAGS += $(BUILDOPTS)
 
 ASFLAGS	:=	$(ARCH)
 LDFLAGS	=	-Os $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections -mthumb -mcpu=arm7tdmi -mtune=arm7tdmi -Wl,-Map,output.map,--cref -nodefaultlibs
@@ -211,7 +215,7 @@ $(GENERATE_STAMP): text_generated $(PAYLOAD_GEN_INPUTS) compress_lz10.sh | data 
 		CXXFLAGS= \
 		LDFLAGS= \
 		AR=ar \
-		$(MAKE) -C tools/payload-generator BUILD_LANG=$(BUILD_LANG) BUILD_TYPE=$(BUILD_TYPE)
+		$(MAKE) -C tools/payload-generator
 	@echo
 	@echo "----------------------------------------------------------------"
 	@echo

@@ -1,8 +1,6 @@
 #ifndef CUSTOM_MALLOC_H
 #define CUSTOM_MALLOC_H
 
-#include "debug_mode.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

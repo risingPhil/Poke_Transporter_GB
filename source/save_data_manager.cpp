@@ -1,7 +1,6 @@
 #include <tonc.h>
 #include "save_data_manager.h"
 #include "flash_mem.h"
-#include "debug_mode.h"
 #include "button_menu.h"
 #include "pokemon_data.h"
 #include "libraries/Pokemon-Gen3-to-Gen-X/include/save.h"

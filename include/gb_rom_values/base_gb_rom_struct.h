@@ -3,10 +3,6 @@
 
 #include <cstdint>
 
-#if defined(__arm__)
-#include "debug_mode.h"
-#endif
-
 #if PAYLOAD_EXPORT_TEST || !defined(__arm__)
 typedef uint8_t u8, byte, uchar, echar;
 typedef uint16_t u16, hword, ushort, eshort;

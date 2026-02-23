@@ -15,7 +15,6 @@
 #include "sprite_data.h"
 #include "button_handler.h"
 #include "button_menu.h"
-#include "debug_mode.h"
 // #include "soundbank.h"
 // #include "soundbank_bin.h"
 #include "dex_handler.h"
@@ -531,11 +530,6 @@ int main(void)
 	// MAIN LOOP
 	while (true)
 	{
-		if (DEBUG_MODE && false) // This isn't really needed anymore
-		{
-			print_mem_section();
-			curr_GBA_rom.print_rom_info();
-		}
 		load_flex_background(BG_MAIN_MENU, 2);
 
 		obj_unhide_multi(ptgb_logo_l, 1, 2);
