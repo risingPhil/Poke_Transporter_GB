@@ -5,7 +5,6 @@ BUILD_TYPES := release debug
 BUILD_LANG ?= english
 BUILD_TYPE ?= release
 GIT_SUFFIX := $(shell git describe --tags --long --dirty | sed -E 's/^[^-]+-([0-9]+)-g[0-9a-f]+(-dirty)?$$/\1/')
-GIT_FULL := $(shell git describe --tags --always --dirty 2>/dev/null)
 
 ifeq ($(GIT_SUFFIX),0)
 GIT_VERSION = $(shell git describe --tags --abbrev=0)
