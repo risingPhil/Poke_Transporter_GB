@@ -16,7 +16,7 @@ print ("Running text_helper:")
 
 if (update == True):
 
-    url = 'https://docs.google.com/spreadsheets/d/14LLs5lLqWasFcssBmJdGXjjYxARAJBa_QUOUhXZt4v8/export?format=xlsx'
+    url = 'https://docs.google.com/spreadsheets/d/1tgYekUqF1AUsBJFi3YVvWH_PTCJC2YqpcI3y9wnlOAQ/export?format=xlsx'
     new_file_path = 'text_helper/new_text.xlsx'
     old_file_path = 'text_helper/text.xlsx'
     json_file_path = 'text_helper/output.json'
