@@ -12,13 +12,7 @@
 class uncompressed_text_data_table
 {
 public:
-    uncompressed_text_data_table();
-
-    /**
-     * This function will start the full decompression for the specified compressed_table
-     * and stores it in the decompression_buffer_
-     */
-    void decompress(const uint8_t *table, uint32_t table_size);
+    uncompressed_text_data_table(const uint8_t *table, uint32_t table_size);
 
     /**
      * Returns the number of text entries in the decompression_buffer_

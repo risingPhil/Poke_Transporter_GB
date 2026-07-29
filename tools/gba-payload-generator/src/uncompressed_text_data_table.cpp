@@ -38,16 +38,10 @@ static uint16_t get_entry_size_in_bytes(const uint8_t *index_buffer, uint32_t de
     return entry_size_in_bytes;
 }
 
-uncompressed_text_data_table::uncompressed_text_data_table()
-    : table_(nullptr)
-    , table_size_(0)
+uncompressed_text_data_table::uncompressed_text_data_table(const uint8_t *table, uint32_t table_size)
+    : table_(table)
+    , table_size_(table_size)
 {
-}
-
-void uncompressed_text_data_table::decompress(const uint8_t *table, uint32_t table_size)
-{
-    table_ = table;
-    table_size_ = table_size;
 }
 
 uint16_t uncompressed_text_data_table::get_number_of_text_entries() const

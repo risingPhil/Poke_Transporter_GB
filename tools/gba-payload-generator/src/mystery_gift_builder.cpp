@@ -12,6 +12,37 @@
 #define MAX_PKMN_IN_BOX 30
 #define POKEMON_SIZE 80
 
+// WARNING: these are hardcoded at the moment.
+// If any addition happens here, you may have to update this stuff manually.
+#define RSEFRLG_dia_textGreet_rse 0
+#define RSEFRLG_dia_textGreet_frlg 1
+#define RSEFRLG_dia_textMoveBox_rs 2
+#define RSEFRLG_dia_textMoveBox_frlg 3
+#define RSEFRLG_dia_textMoveBox_e 4
+#define RSEFRLG_dia_textWeHere_rs 5
+#define RSEFRLG_dia_textWeHere_frlg 6
+#define RSEFRLG_dia_textWeHere_e 7
+#define RSEFRLG_dia_textRecieved_rs 8
+#define RSEFRLG_dia_textRecieved_frlge 9
+#define RSEFRLG_dia_textYouMustBe_first 10
+#define RSEFRLG_dia_textYouMustBe_second 11
+#define RSEFRLG_dia_textIAm_first_rs 12
+#define RSEFRLG_dia_textIAm_first_frlge 13
+#define RSEFRLG_dia_textIAm_second_rs 14
+#define RSEFRLG_dia_textIAm_second_frlge 15
+#define RSEFRLG_dia_textPCConvo_rs 16
+#define RSEFRLG_dia_textPCConvo_frlge 17
+#define RSEFRLG_dia_textPCThanks_rs 18
+#define RSEFRLG_dia_textPCThanks_frlge 19
+#define RSEFRLG_dia_textThank_rs 20
+#define RSEFRLG_dia_textThank_frlge 21
+#define RSEFRLG_dia_textPCFull_rs 22
+#define RSEFRLG_dia_textPCFull_frlge 23
+#define RSEFRLG_dia_textLookerFull_rs 24
+#define RSEFRLG_dia_textLookerFull_frlge 25
+
+#define RSEFRLG_LENGTH 26
+
 bool asm_payload_location;
 
 // These are static variables
@@ -40,9 +71,8 @@ mystery_gift_script::mystery_gift_script(u8 *save_section_30_buffer)
 {
 }
 
-void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, const uint16_t *gen3_charset, PokeBox *box, bool first_time)
+void mystery_gift_script::build_script(const uncompressed_text_data_table &text_table, const struct ROM_DATA& curr_GBA_rom, const uint16_t *gen3_charset, PokeBox *box, bool first_time)
 {
-    uncompressed_text_data_table decompressed_text_table;
     std::vector<script_var *> mg_variable_list;
     std::vector<script_var *> sec30_variable_list;
 
@@ -128,7 +158,10 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
         MOVEMENT_ACTION_FACE_DOWN,
         MOVEMENT_ACTION_DELAY_8,
     };
-    movementSlowSpin.set_movement(movementSlowSpinArray, 16);
+
+    const bool is_hoenn_game = (curr_GBA_rom.gamecode == RUBY_ID || curr_GBA_rom.gamecode == SAPPHIRE_ID || curr_GBA_rom.gamecode == EMERALD_ID);
+
+    movementSlowSpin.set_movement(movementSlowSpinArray, 16, is_hoenn_game);
 
     static const byte movementFastSpinArray[60] = {
         MOVEMENT_ACTION_FACE_LEFT,
@@ -162,10 +195,10 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
         MOVEMENT_ACTION_FACE_RIGHT,
         MOVEMENT_ACTION_DELAY_4,
     };
-    movementFastSpin.set_movement(movementFastSpinArray, 30);
+    movementFastSpin.set_movement(movementFastSpinArray, 30, is_hoenn_game);
 
     static const byte movementExclaimArray[2] = {MOVEMENT_ACTION_EMOTE_EXCLAMATION_MARK};
-    movementExclaim.set_movement(movementExclaimArray, 1);
+    movementExclaim.set_movement(movementExclaimArray, 1, is_hoenn_game);
 
     static const byte movementToBoxesArrayRS[8] = {MOVEMENT_ACTION_WALK_FAST_UP, MOVEMENT_ACTION_WALK_FAST_LEFT, MOVEMENT_ACTION_WALK_FAST_UP, MOVEMENT_ACTION_EMOTE_EXCLAMATION_MARK};
     static const byte movementToBoxesArrayFRLG[6] = {MOVEMENT_ACTION_WALK_FAST_UP, MOVEMENT_ACTION_WALK_FAST_UP, MOVEMENT_ACTION_EMOTE_EXCLAMATION_MARK};
@@ -181,40 +214,38 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
     ptr_index = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x12);
     ptr_pkmn_offset = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x14);
 
-    const bool is_hoenn_game = (rom_values.gamecode == RUBY_ID || rom_values.gamecode == SAPPHIRE_ID || rom_values.gamecode == EMERALD_ID);
-
     switch (curr_GBA_rom.gamecode)
     {
     case RUBY_ID:
     case SAPPHIRE_ID:
-        movementToBoxes.set_movement(movementToBoxesArrayRS, 4);
-        movementWalkBack.set_movement(movementWalkBackArrayRS, 3);
+        movementToBoxes.set_movement(movementToBoxesArrayRS, 4, is_hoenn_game);
+        movementWalkBack.set_movement(movementWalkBackArrayRS, 3, is_hoenn_game);
         break;
     case FIRERED_ID:
     case LEAFGREEN_ID:
-        movementToBoxes.set_movement(movementToBoxesArrayFRLG, 3);
-        movementWalkBack.set_movement(movementWalkBackArrayFRLG, 2);
+        movementToBoxes.set_movement(movementToBoxesArrayFRLG, 3, is_hoenn_game);
+        movementWalkBack.set_movement(movementWalkBackArrayFRLG, 2, is_hoenn_game);
         break;
     case EMERALD_ID:
-        movementToBoxes.set_movement(movementToBoxesArrayE, 6);
-        movementWalkBack.set_movement(movementWalkBackArrayE, 4);
+        movementToBoxes.set_movement(movementToBoxesArrayE, 6, is_hoenn_game);
+        movementWalkBack.set_movement(movementWalkBackArrayE, 4, is_hoenn_game);
         break;
     }
 
     static const byte movementLookDownArray[2] = {MOVEMENT_ACTION_FACE_DOWN};
-    movementLookDown.set_movement(movementLookDownArray, 1);
+    movementLookDown.set_movement(movementLookDownArray, 1, is_hoenn_game);
 
     static const byte movementOutOfWayArray[4] = {MOVEMENT_ACTION_WALK_FAST_RIGHT, MOVEMENT_ACTION_FACE_LEFT};
-    movementOutOfWay.set_movement(movementOutOfWayArray, 2);
+    movementOutOfWay.set_movement(movementOutOfWayArray, 2, is_hoenn_game);
 
     static const byte movementInWayArray[4] = {MOVEMENT_ACTION_WALK_FAST_LEFT, MOVEMENT_ACTION_FACE_DOWN};
-    movementInWay.set_movement(movementInWayArray, 2);
+    movementInWay.set_movement(movementInWayArray, 2, is_hoenn_game);
 
     static const byte movementGoUpArray[2] = {MOVEMENT_ACTION_WALK_FAST_UP};
-    movementGoUp.set_movement(movementGoUpArray, 1);
+    movementGoUp.set_movement(movementGoUpArray, 1, is_hoenn_game);
 
     static const byte movementGoDownArray[4] = {MOVEMENT_ACTION_WALK_FAST_DOWN, MOVEMENT_ACTION_FACE_UP};
-    movementGoDown.set_movement(movementGoDownArray, 2);
+    movementGoDown.set_movement(movementGoDownArray, 2, is_hoenn_game);
 
     // const byte track_1[] = {0xBC, 0x00, 0xBB, 0x38, 0xBD, 0x38, 0xC4, 0x00, 0xBE, 0x60, 0xBF, 0x3D, 0xC0, 0x40, 0xD4, 0x51, 0x70, 0x86, 0xD4, 0x8C, 0x53, 0x86, 0xD4, 0x8C, 0x54, 0x86, 0xD4, 0x92, 0xE8, 0x55, 0x92, 0xBE, 0x64, 0x82, 0x6C, 0x84, 0x74, 0x85, 0xB1};
     // songLooker.add_track(track_1, sizeof(track_1));
@@ -260,6 +291,7 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
     // const byte track_unused[] = {0xBC, 0x00, 0xBD, 0x7E, 0xC4, 0x00, 0xBE, 0x53, 0xBF, 0x40, 0xD4, 0x24, 0x70, 0x8C, 0xD4, 0x98, 0x32, 0x86, 0xD4, 0x86, 0x30, 0x86, 0xD4, 0x86, 0xD4, 0x86, 0xD4, 0x86, 0x2D, 0x86, 0xD4, 0x86, 0xD4, 0x86, 0xD4, 0x85, 0xB1};
     // songLooker.add_track(track_unused, sizeof(track_unused));
 
+#if ENABLE_PKMN_INSERTION
     u8 dex_nums[MAX_PKMN_IN_BOX] = {};
 
     // placement new is required to run the constructor of PokemonTables for the decompressed_store's instance
@@ -291,6 +323,10 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
 
     // Add in the dex numbers
     memcpy(save_section_30 + curr_section30_index, dex_nums, MAX_PKMN_IN_BOX);
+#else
+    memset(save_section_30 + curr_section30_index, 0, (MAX_PKMN_IN_BOX * POKEMON_SIZE) + MAX_PKMN_IN_BOX);
+    curr_section30_index += (MAX_PKMN_IN_BOX * POKEMON_SIZE);
+#endif
     curr_section30_index += MAX_PKMN_IN_BOX;
 
     // insert text
@@ -307,62 +343,59 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
     // Ň = New line
     // ƞ = string terminator
 
-    // this decompresses the compressed text table into the buffer inside of the decompressed_store union
-    // thereby reusing the stack (=IWRAM) memory used earlier for the PokemonTables instance we used above
-    decompressed_text_table.decompress(get_compressed_text_table(RSEFRLG_INDEX));
     switch (curr_GBA_rom.gamecode)
     {
     case RUBY_ID:
-        textGreet.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textGreet_rse));
-        textMoveBox.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textMoveBox_rs));
-        textWeHere.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textWeHere_rs));
-        textReceived.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textRecieved_rs));
-        textIAm.set_text(decompressed_text_table.get_text_entry(first_time ? RSEFRLG_dia_textIAm_first_rs : RSEFRLG_dia_textIAm_second_rs));
-        textPCConvo.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCConvo_rs)); // ȼDon’t worry ƲÀ,Ňyou won’t have to do a thing!");
-        textPCThanks.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCThanks_rs));
-        textThank.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textThank_rs));
-        textPCFull.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCFull_rs));
-        textLookerFull.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textLookerFull_rs));
+        textGreet.set_text(text_table.get_text_entry(RSEFRLG_dia_textGreet_rse));
+        textMoveBox.set_text(text_table.get_text_entry(RSEFRLG_dia_textMoveBox_rs));
+        textWeHere.set_text(text_table.get_text_entry(RSEFRLG_dia_textWeHere_rs));
+        textReceived.set_text(text_table.get_text_entry(RSEFRLG_dia_textRecieved_rs));
+        textIAm.set_text(text_table.get_text_entry(first_time ? RSEFRLG_dia_textIAm_first_rs : RSEFRLG_dia_textIAm_second_rs));
+        textPCConvo.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCConvo_rs)); // ȼDon’t worry ƲÀ,Ňyou won’t have to do a thing!");
+        textPCThanks.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCThanks_rs));
+        textThank.set_text(text_table.get_text_entry(RSEFRLG_dia_textThank_rs));
+        textPCFull.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCFull_rs));
+        textLookerFull.set_text(text_table.get_text_entry(RSEFRLG_dia_textLookerFull_rs));
         break;
     case SAPPHIRE_ID:
-        textGreet.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textGreet_rse));
-        textMoveBox.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textMoveBox_rs));
-        textWeHere.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textWeHere_rs));
-        textReceived.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textRecieved_rs));
-        textIAm.set_text(decompressed_text_table.get_text_entry(first_time ? RSEFRLG_dia_textIAm_first_rs : RSEFRLG_dia_textIAm_second_rs));
-        textPCConvo.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCConvo_rs)); // ȼDon’t worry ƲÀ,Ňyou won’t have to do a thing!");
-        textPCThanks.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCThanks_rs));
-        textThank.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textThank_rs));
-        textPCFull.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCFull_rs));
-        textLookerFull.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textLookerFull_rs));
+        textGreet.set_text(text_table.get_text_entry(RSEFRLG_dia_textGreet_rse));
+        textMoveBox.set_text(text_table.get_text_entry(RSEFRLG_dia_textMoveBox_rs));
+        textWeHere.set_text(text_table.get_text_entry(RSEFRLG_dia_textWeHere_rs));
+        textReceived.set_text(text_table.get_text_entry(RSEFRLG_dia_textRecieved_rs));
+        textIAm.set_text(text_table.get_text_entry(first_time ? RSEFRLG_dia_textIAm_first_rs : RSEFRLG_dia_textIAm_second_rs));
+        textPCConvo.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCConvo_rs)); // ȼDon’t worry ƲÀ,Ňyou won’t have to do a thing!");
+        textPCThanks.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCThanks_rs));
+        textThank.set_text(text_table.get_text_entry(RSEFRLG_dia_textThank_rs));
+        textPCFull.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCFull_rs));
+        textLookerFull.set_text(text_table.get_text_entry(RSEFRLG_dia_textLookerFull_rs));
         break;
     case FIRERED_ID:
     case LEAFGREEN_ID:
-        textGreet.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textGreet_frlg));
-        textMoveBox.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textMoveBox_frlg));
-        textWeHere.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textWeHere_frlg));
-        textReceived.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textRecieved_frlge));
-        textIAm.set_text(decompressed_text_table.get_text_entry(first_time ? RSEFRLG_dia_textIAm_first_frlge : RSEFRLG_dia_textIAm_second_frlge));
-        textPCConvo.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCConvo_frlge)); // ȼDon’t worry ƲÀ,Ňyou won’t have to do a thing!");
-        textPCThanks.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCThanks_frlge));
-        textThank.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textThank_frlge));
-        textPCFull.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCFull_frlge));
-        textLookerFull.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textLookerFull_frlge));
+        textGreet.set_text(text_table.get_text_entry(RSEFRLG_dia_textGreet_frlg));
+        textMoveBox.set_text(text_table.get_text_entry(RSEFRLG_dia_textMoveBox_frlg));
+        textWeHere.set_text(text_table.get_text_entry(RSEFRLG_dia_textWeHere_frlg));
+        textReceived.set_text(text_table.get_text_entry(RSEFRLG_dia_textRecieved_frlge));
+        textIAm.set_text(text_table.get_text_entry(first_time ? RSEFRLG_dia_textIAm_first_frlge : RSEFRLG_dia_textIAm_second_frlge));
+        textPCConvo.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCConvo_frlge)); // ȼDon’t worry ƲÀ,Ňyou won’t have to do a thing!");
+        textPCThanks.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCThanks_frlge));
+        textThank.set_text(text_table.get_text_entry(RSEFRLG_dia_textThank_frlge));
+        textPCFull.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCFull_frlge));
+        textLookerFull.set_text(text_table.get_text_entry(RSEFRLG_dia_textLookerFull_frlge));
         break;
     case EMERALD_ID:
-        textGreet.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textGreet_rse));
-        textMoveBox.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textMoveBox_e));
-        textWeHere.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textWeHere_e));
-        textReceived.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textRecieved_frlge));
-        textIAm.set_text(decompressed_text_table.get_text_entry(first_time ? RSEFRLG_dia_textIAm_first_frlge : RSEFRLG_dia_textIAm_second_frlge));
-        textPCConvo.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCConvo_frlge)); // ȼDon’t worry ƲÀ,Ňyou won’t have to do a thing!");
-        textPCThanks.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCThanks_frlge));
-        textThank.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textThank_frlge));
-        textPCFull.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textPCFull_frlge));
-        textLookerFull.set_text(decompressed_text_table.get_text_entry(RSEFRLG_dia_textLookerFull_frlge));
+        textGreet.set_text(text_table.get_text_entry(RSEFRLG_dia_textGreet_rse));
+        textMoveBox.set_text(text_table.get_text_entry(RSEFRLG_dia_textMoveBox_e));
+        textWeHere.set_text(text_table.get_text_entry(RSEFRLG_dia_textWeHere_e));
+        textReceived.set_text(text_table.get_text_entry(RSEFRLG_dia_textRecieved_frlge));
+        textIAm.set_text(text_table.get_text_entry(first_time ? RSEFRLG_dia_textIAm_first_frlge : RSEFRLG_dia_textIAm_second_frlge));
+        textPCConvo.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCConvo_frlge)); // ȼDon’t worry ƲÀ,Ňyou won’t have to do a thing!");
+        textPCThanks.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCThanks_frlge));
+        textThank.set_text(text_table.get_text_entry(RSEFRLG_dia_textThank_frlge));
+        textPCFull.set_text(text_table.get_text_entry(RSEFRLG_dia_textPCFull_frlge));
+        textLookerFull.set_text(text_table.get_text_entry(RSEFRLG_dia_textLookerFull_frlge));
         break;
     }
-    textYouMustBe.set_text(decompressed_text_table.get_text_entry(first_time ? RSEFRLG_dia_textYouMustBe_first : RSEFRLG_dia_textYouMustBe_second));
+    textYouMustBe.set_text(text_table.get_text_entry(first_time ? RSEFRLG_dia_textYouMustBe_first : RSEFRLG_dia_textYouMustBe_second));
 
     textThank.insert_text(gen3_charset, save_section_30, is_hoenn_game);
     textPCFull.insert_text(gen3_charset, save_section_30, is_hoenn_game);
@@ -389,7 +422,7 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
         curr_section30_index++; // Align the code so that it is byte aligned
     }
 
-    songLooker.insert_music_data(save_section_30, 0, 0, 0, curr_GBA_rom.loc_voicegroup);
+    songLooker.insert_music_data(curr_GBA_rom, save_section_30, 0, 0, 0, curr_GBA_rom.loc_voicegroup);
 
     asm_var customSong(songLooker.get_loc_in_sec30(curr_GBA_rom), sec30_variable_list, &curr_section30_index);
     asm_var customSongDuration(119, sec30_variable_list, &curr_section30_index);
@@ -403,11 +436,11 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
 #include "lookerRSE.h"
     if (is_hoenn_game)
     {
-        spriteLooker.insert_sprite_data(save_section_30, lookerRSETiles, 256, lookerRSEPal);
+        spriteLooker.insert_sprite_data(curr_GBA_rom, save_section_30, lookerRSETiles, 256, lookerRSEPal);
     }
     else
     {
-        spriteLooker.insert_sprite_data(save_section_30, lookerFRLGTiles, 256, lookerFRLGPal);
+        spriteLooker.insert_sprite_data(curr_GBA_rom, save_section_30, lookerFRLGTiles, 256, lookerFRLGPal);
     }
     asm_var paletteData(curr_GBA_rom.loc_gSaveDataBuffer + (curr_section30_index - 32), sec30_variable_list, &curr_section30_index);
 
@@ -801,12 +834,12 @@ void mystery_gift_script::build_script(const struct ROM_DATA& curr_GBA_rom, cons
 
     for (unsigned int i = 0; i < mg_variable_list.size(); i++) // Fill all the refrences for script variables in the mg
     {
-        mg_variable_list[i]->fill_references(mg_script);
+        mg_variable_list[i]->fill_references(curr_GBA_rom, mg_script);
     }
 
     for (unsigned int i = 0; i < sec30_variable_list.size(); i++) // Fill all the refrences for script variables in save section 30
     {
-        sec30_variable_list[i]->fill_references(save_section_30);
+        sec30_variable_list[i]->fill_references(curr_GBA_rom, save_section_30);
     }
 
     assert(curr_mg_index <= MG_SCRIPT_SIZE); // Assert that the script is not too large

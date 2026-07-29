@@ -249,6 +249,7 @@
 #define CPU_SET_32BIT     0x04000000
 
 class PokeBox;
+class uncompressed_text_data_table;
 
 class mystery_gift_script
 {
@@ -271,7 +272,7 @@ public:
      * You're in control!
      */
     mystery_gift_script(u8 *save_section_30_buffer);
-    void build_script(const struct ROM_DATA& curr_GBA_rom, const uint16_t *gen3_charset, PokeBox *box, bool first_time);
+    void build_script(const uncompressed_text_data_table &text_table, const struct ROM_DATA& curr_GBA_rom, const uint16_t *gen3_charset, PokeBox *box, bool first_time);
     //void build_script_old(Pokemon_Party &incoming_box_data);
     const u8 *get_script() const;
     const u8 * get_section30() const;
