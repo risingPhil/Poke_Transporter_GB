@@ -251,7 +251,7 @@ void sprite_var::insert_sprite_data(const ROM_DATA &curr_GBA_rom, u8 mg_array[],
         (*curr_loc_ptr)++;
     }
 
-    //LZ77UnCompWram(sprite_array, &mg_array[*curr_loc_ptr]);
+    memcpy(mg_array + (*curr_loc_ptr), sprite_array, size);
     *curr_loc_ptr += size;
 
     for (unsigned int parser = 0; parser < 32; parser++)
