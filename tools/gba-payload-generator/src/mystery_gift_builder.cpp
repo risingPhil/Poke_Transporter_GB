@@ -5,6 +5,7 @@
 #include <vector>
 #include <cassert>
 #include <cstring>
+#include <cstdio>
 
 #define MG_SCRIPT false
 #define S30_SCRIPT true
@@ -324,6 +325,8 @@ void mystery_gift_script::build_script(const uncompressed_text_data_table &text_
     // Add in the dex numbers
     memcpy(save_section_30 + curr_section30_index, dex_nums, MAX_PKMN_IN_BOX);
 #else
+    printf("[mystery_gift_builder]: Pokémon insertion point at save_section_30 offset 0x%08X\n", curr_section30_index);
+
     memset(save_section_30 + curr_section30_index, 0, (MAX_PKMN_IN_BOX * POKEMON_SIZE) + MAX_PKMN_IN_BOX);
     curr_section30_index += (MAX_PKMN_IN_BOX * POKEMON_SIZE);
 #endif
