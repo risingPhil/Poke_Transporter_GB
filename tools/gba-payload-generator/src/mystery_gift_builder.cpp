@@ -61,14 +61,15 @@ int ptr_dex_seen_caught;
 int ptr_index;
 int ptr_pkmn_offset;
 
-// the below structs and union are a scheme to reuse stack (IWRAM) memory of the
-// PokemonTables instance for storing decompressed text data once it's no longer needed.
-// The reason is that depending on the optimization level (-O0 specifically), the compiler may not do so automatically
-// if you'd use anonymous scopes for that purpose.
-// Having a union forces this behaviour.
-
-mystery_gift_script::mystery_gift_script(u8 *save_section_30_buffer)
-    : curr_mg_index(NPC_LOCATION_OFFSET), curr_section30_index(0), save_section_30(save_section_30_buffer), mg_script(), value_buffer(), four_align_value(0)
+mystery_gift_script::mystery_gift_script(u8 *save_section_30_buffer, u8 *mg_script_buffer)
+    : curr_mg_index(NPC_LOCATION_OFFSET)
+    , curr_section30_index(0)
+    , mg_script_size(0)
+    , section30_size(0)
+    , save_section_30(save_section_30_buffer)
+    , mg_script(mg_script_buffer)
+    , value_buffer()
+    , four_align_value(0)
 {
 }
 
@@ -159,6 +160,9 @@ void mystery_gift_script::build_script(const uncompressed_text_data_table &text_
         MOVEMENT_ACTION_FACE_DOWN,
         MOVEMENT_ACTION_DELAY_8,
     };
+
+    curr_mg_index = NPC_LOCATION_OFFSET;
+    curr_section30_index = 0;
 
     const bool is_hoenn_game = (curr_GBA_rom.gamecode == RUBY_ID || curr_GBA_rom.gamecode == SAPPHIRE_ID || curr_GBA_rom.gamecode == EMERALD_ID);
 
@@ -845,6 +849,9 @@ void mystery_gift_script::build_script(const uncompressed_text_data_table &text_
         sec30_variable_list[i]->fill_references(curr_GBA_rom, save_section_30);
     }
 
+    mg_script_size = curr_mg_index;
+    section30_size = curr_section30_index;
+
     assert(curr_mg_index <= MG_SCRIPT_SIZE); // Assert that the script is not too large
     assert(curr_section30_index <= 0x4096);   // Assert that the script
 };
@@ -904,6 +911,16 @@ u16 mystery_gift_script::calc_crc16() // Implementation taken from PokeEmerald D
     }
     return ~crc;
 };
+
+u32 mystery_gift_script::get_script_size() const
+{
+    return mg_script_size;
+}
+
+u32 mystery_gift_script::get_section30_size() const
+{
+    return section30_size;
+}
 
 void mystery_gift_script::add_asm(u16 command)
 {

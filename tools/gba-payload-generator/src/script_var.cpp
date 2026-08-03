@@ -1,5 +1,5 @@
 #include "script_var.h"
-#include "base_gba_rom_struct.h"
+#include "rom_values/base_gba_rom_struct.h"
 #include <cstdio>
 #include <cstring>
 

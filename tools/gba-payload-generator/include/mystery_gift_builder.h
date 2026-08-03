@@ -1,7 +1,7 @@
 #ifndef MYSTERY_GIFT_BUILDER_H
 #define MYSTERY_GIFT_BUILDER_H
 
-#include "base_gba_rom_struct.h"
+#include "rom_values/base_gba_rom_struct.h"
 
 #define VIR_ADDRESS 0x08000000
 #define MG_SCRIPT_SIZE 0x3E8
@@ -255,8 +255,10 @@ class mystery_gift_script
 {
     int curr_mg_index;
     int curr_section30_index;
+    u32 mg_script_size;
+    u32 section30_size;
     u8 *save_section_30;
-    u8 mg_script[MG_SCRIPT_SIZE];
+    u8 *mg_script;
     u8 value_buffer[9];
     u8 four_align_value;
 
@@ -271,13 +273,16 @@ public:
      * Especially if you're using global_memory_buffer!
      * You're in control!
      */
-    mystery_gift_script(u8 *save_section_30_buffer);
+    mystery_gift_script(u8 *save_section_30_buffer, u8 *mg_script_buffer);
     void build_script(const uncompressed_text_data_table &text_table, const struct ROM_DATA& curr_GBA_rom, const uint16_t *gen3_charset, PokeBox *box, bool first_time);
     //void build_script_old(Pokemon_Party &incoming_box_data);
     const u8 *get_script() const;
     const u8 * get_section30() const;
     u32 calc_checksum32();
     u16 calc_crc16();
+
+    u32 get_script_size() const;
+    u32 get_section30_size() const;
 
 private:
     void add_command(int len);

@@ -1,11 +1,16 @@
 #include "mystery_gift_builder.h"
 #include "uncompressed_text_data_table.h"
+#include "rom_values/gba_rom_values.h"
 
 #include <cstdio>
+#include <cstring>
+#include <utility>
+#include <cstdlib>
+#include <climits>
 
 #define FLASH_SECTOR_SIZE 4096
 
-static const uint16_t gen3_charset_eng[256]{
+static const uint16_t gen3CharsetEng[256]{
     0x20, 0xC0, 0xC1, 0xC2, 0xC7,  0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0x20, 0xCE,
     0xCF, 0xD2, 0xD3, 0xD4, 0x152, 0xD9, 0xDA, 0xDB, 0xD1, 0xDF, 0xE0, 0xE1,
     0x20, 0xE7, 0xE8, 0xE9, 0xEA,  0xEB, 0xEC, 0x20, 0xEE, 0xEF, 0xF2, 0xF3,
@@ -30,25 +35,158 @@ static const uint16_t gen3_charset_eng[256]{
     0x20, 0x20, 0x15E, 0x23C, 0x206, 0x1B2, 0x147, 0x19E
 };
 
-static void print_usage()
+static const std::pair<const char *, int> languageMap[] = {
+    {"english", LANG_ENG},
+    {"french", LANG_FRE},
+    {"spanish", LANG_SPA},
+    {"italian", LANG_ITA},
+    {"german", LANG_GER},
+    {"japanese", LANG_JPN}
+};
+
+static const std::pair<uint32_t, const char *> romIdStringMap[] = {
+    {RUBY_ID, "ruby"},
+    {SAPPHIRE_ID, "sapphire"},
+    {FIRERED_ID, "firered"},
+    {LEAFGREEN_ID, "leafgreen"},
+    {EMERALD_ID, "emerald"}
+};
+
+static const std::pair<uint32_t, const char *> romVersionStringMap[] = {
+    { VERS_1_0, "1_0" },
+    { VERS_1_1, "1_1" },
+    { VERS_1_2, "1_2" }
+};
+
+static const std::pair<char, const char *> romLanguageStringMap[] = {
+    { LANG_JPN, "japanese" },
+    { LANG_ENG, "english" },
+    { LANG_FRE, "french" },
+    { LANG_GER, "german" },
+    { LANG_ITA, "italian" },
+    { LANG_SPA, "spanish" }
+};
+
+/**
+ * @brief This function parses the language cmdline arg and returns the corresponding language code.
+ * Note: if the language is not recognized, it defaults to LANG_ENG (English).
+ */
+static char parseLanguageArg(const char *languageArg)
 {
-    printf("Usage: mystery_gift_builder path/to/RSEFRLG_text_table.bin path/to/output.bin\n");
+    size_t numLangs = sizeof(languageMap) / sizeof(languageMap[0]);
+    for (size_t i = 0; i < numLangs; ++i)
+    {
+        if (strcmp(languageArg, languageMap[i].first) == 0)
+        {
+            return languageMap[i].second;
+        }
+    }
+    return LANG_ENG;
+}
+
+/**
+ * @brief Template utility function to look up a string conversion from a pair list.
+ */
+template <typename T>
+static const char* convertXToString(T listKey, const std::pair<T, const char *> *list, size_t listSize)
+{
+    for (size_t i = 0; i < listSize; ++i)
+    {
+        if (list[i].first == listKey)
+        {
+            return list[i].second;
+        }
+    }
+    return "unknown";
+}
+
+static const char* convertGameIdToString(uint32_t romId)
+{
+    const size_t numRoms = sizeof(romIdStringMap) / sizeof(romIdStringMap[0]);
+    return convertXToString(romId, romIdStringMap, numRoms);
+}
+
+static const char* convertRomVersionToString(uint32_t romVersion)
+{
+    const size_t numVersions = sizeof(romVersionStringMap) / sizeof(romVersionStringMap[0]);
+    return convertXToString(romVersion, romVersionStringMap, numVersions);
+}
+
+static const char* convertRomLanguageToString(char romLanguage)
+{
+    const size_t numLanguages = sizeof(romLanguageStringMap) / sizeof(romLanguageStringMap[0]);
+    return convertXToString(romLanguage, romLanguageStringMap, numLanguages);
+}
+
+static void pickGBARomDataArray(char languageCode, const ROM_DATA *&gbaRomDataArray, uint16_t &gbaRomDataArraySize)
+{
+    switch (languageCode)
+    {
+        case LANG_JPN:
+            gbaRomDataArray = rom_data_values_jpn;
+            gbaRomDataArraySize = rom_data_values_jpn_size;
+            break;
+        case LANG_ENG:
+            gbaRomDataArray = rom_data_values_eng;
+            gbaRomDataArraySize = rom_data_values_eng_size;
+            break;
+        case LANG_FRE:
+            gbaRomDataArray = rom_data_values_fre;
+            gbaRomDataArraySize = rom_data_values_fre_size;
+            break;
+        case LANG_GER:
+            gbaRomDataArray = rom_data_values_ger;
+            gbaRomDataArraySize = rom_data_values_ger_size;
+            break;
+        case LANG_ITA:
+            gbaRomDataArray = rom_data_values_ita;
+            gbaRomDataArraySize = rom_data_values_ita_size;
+            break;
+        case LANG_SPA:
+            gbaRomDataArray = rom_data_values_spa;
+            gbaRomDataArraySize = rom_data_values_spa_size;
+            break;
+        default:
+            fprintf(stderr, "Error: Unsupported language code %c!\n", languageCode);
+            exit(1);
+    }
+}
+
+static void generateOutputPath(char *outputPathBuffer, const char *outputDir, const char* baseString, const ROM_DATA *romData)
+{
+    const char *gameName = convertGameIdToString(romData->gamecode);
+    const char *versionString = convertRomVersionToString(romData->version);
+    const char *languageString = convertRomLanguageToString(static_cast<char>(romData->language));
+
+    snprintf(outputPathBuffer, PATH_MAX, "%s/%s_%s_%s_%s.bin", outputDir, baseString, gameName, languageString, versionString);
+}
+
+static void printUsage()
+{
+    printf("Usage: mystery_gift_builder path/to/RSEFRLG_text_table.bin language outputPath\n");
     printf("  path/to/RSEFRLG_text_table.bin: Path to the input RSEFRLG text table file.\n");
-    printf("  path/to/output.bin: Path to the output binary file.\n");
+    printf("  language: (english, french, spanish, italian, german, japanese)\n");
+    printf("  outputPath: Path to a directory to output our language-specific payloads to.\n\n");
+    printf("gba-payload-generator will generate all payloads for the specified language.\n");
 }
 
 int main(int argc, char **argv)
 {
     u8 section30Buffer[FLASH_SECTOR_SIZE];
+    u8 mgScriptBuffer[MG_SCRIPT_SIZE];
+    char outputPathBuffer[PATH_MAX];
     u8 *textTableBuffer = nullptr;
     uint32_t textTableSize = 0;
+    const ROM_DATA *gbaRomDataArray;
+    uint16_t gbaRomDataArraySize;
+    char languageCode;
 
     // set up dependencies.
     FILE *text_table_file = fopen(argv[1], "rb");
     if (!text_table_file)
     {
         fprintf(stderr, "Error: Could not open RSEFRLG text table file %s!\n", argv[1]);
-        print_usage();
+        printUsage();
         return 1;
     }
 
@@ -63,7 +201,7 @@ int main(int argc, char **argv)
     if (read_size != textTableSize)
     {
         fprintf(stderr, "Error: Could not read RSEFRLG text table file %s!\n", argv[1]);
-        print_usage();
+        printUsage();
 
         delete[] textTableBuffer;
         textTableBuffer = nullptr;
@@ -73,26 +211,52 @@ int main(int argc, char **argv)
     }
     fclose(text_table_file);
 
-    FILE *output_file = fopen(argv[2], "wb");
-    if (!output_file)
-    {
-        fprintf(stderr, "Error: Could not open output file %s!\n", argv[2]);
-        print_usage();
-        delete[] textTableBuffer;
-        textTableBuffer = nullptr;
-        return 1;
-    }
+    languageCode = parseLanguageArg(argv[2]);
+    pickGBARomDataArray(languageCode, gbaRomDataArray, gbaRomDataArraySize);
 
     // now we can start the real work.
     const uncompressed_text_data_table rsefrlgTable(textTableBuffer, textTableSize);
-    mystery_gift_script builder(section30Buffer);
+    mystery_gift_script builder(section30Buffer, mgScriptBuffer);
 
-    // TODO: fix up function call and output to file
-    builder.build_script(rsefrlgTable, /* curr_GBA_rom */ {}, gen3_charset_eng, /* box */ nullptr, /* first_time */ true);
+    for(size_t i = 0; i < gbaRomDataArraySize; ++i)
+    {
+        generateOutputPath(outputPathBuffer, argv[3], "section30", gbaRomDataArray + i);
+        printf("Generating %s...\n", outputPathBuffer);
+
+        builder.build_script(rsefrlgTable, gbaRomDataArray[i], gen3CharsetEng, nullptr, true);
+
+        FILE *section30OutputFile = fopen(outputPathBuffer, "wb");
+        if (!section30OutputFile)
+        {
+            fprintf(stderr, "Error: Could not open output file %s for writing! Skipping!\n", outputPathBuffer);
+            continue;
+        }
+
+        size_t write_size = fwrite(section30Buffer, 1, builder.get_section30_size(), section30OutputFile);
+        if (write_size != builder.get_section30_size())
+        {
+            fprintf(stderr, "Error: Could not write to output file %s!\n", outputPathBuffer);
+        }
+        fclose(section30OutputFile);
+
+        generateOutputPath(outputPathBuffer, argv[3], "script", gbaRomDataArray + i);
+        FILE *mgScriptOutputFile = fopen(outputPathBuffer, "wb");
+        if (!mgScriptOutputFile)
+        {
+            fprintf(stderr, "Error: Could not open output file %s for writing! Skipping!\n", outputPathBuffer);
+            continue;
+        }
+
+        write_size = fwrite(mgScriptBuffer, 1, builder.get_script_size(), mgScriptOutputFile);
+        if (write_size != builder.get_script_size())
+        {
+            fprintf(stderr, "Error: Could not write to output file %s!\n", outputPathBuffer);
+        }
+        fclose(mgScriptOutputFile);
+    }
 
     delete[] textTableBuffer;
     textTableBuffer = nullptr;
 
-    fclose(output_file);
     return 0;
 }
