@@ -2,9 +2,9 @@
 #define SPRITE_DATA_H
 
 #include <tonc.h>
-#include "pokemon_party.h"
 #include "rom_data.h"
 #include "box_menu.h"
+#include "link_handler.h"
 
 #define FENNEL_SHIFT 4
 
@@ -28,7 +28,8 @@ extern OBJ_ATTR *type_sprites[14];
 #include "flag_ger.h"
 #include "flag_spa.h"
 #include "flag_kor.h"
-extern OBJ_ATTR *flag;
+extern OBJ_ATTR *gb_flag;
+extern OBJ_ATTR *gba_flag;
 #include "Label_Green.h"
 #include "Label_Red.h"
 #include "Label_Blue.h"
@@ -36,6 +37,7 @@ extern OBJ_ATTR *flag;
 #include "Label_Gold.h"
 #include "Label_Silver.h"
 #include "Label_Crystal.h"
+#include "Label_Unknown.h"
 extern OBJ_ATTR *cart_label;
 #include "GB_Shell.h"
 #include "GBC_Shell.h"
@@ -157,7 +159,7 @@ void load_type_sprites(const u8* pkmn_type_table, int pkmn_index, int dex_offset
 void add_menu_box(int options, int startTileX, int startTileY);
 void add_menu_box(int startTileX, int startTileY, int width, int height);
 void reload_textbox_background();
-void load_select_sprites(u8 game_id, u8 lang);
+void load_select_sprites(GameBoyROM currROM);
 void fennel_blink(int frame);
 void fennel_speak(int frame);
 int get_curr_flex_background();
