@@ -1,5 +1,5 @@
 #include "mystery_gift_builder.h"
-#include "uncompressed_text_data_table.h"
+#include "UncompressedFileContainerReader.h"
 #include "rom_values/gba_rom_values.h"
 
 #include <cstdio>
@@ -213,17 +213,20 @@ int main(int argc, char **argv)
 
     languageCode = parseLanguageArg(argv[2]);
     pickGBARomDataArray(languageCode, gbaRomDataArray, gbaRomDataArraySize);
-
+    
     // now we can start the real work.
-    const uncompressed_text_data_table rsefrlgTable(textTableBuffer, textTableSize);
+    const u8 *chunkList[] = { textTableBuffer };
+    UncompressedFileContainerReader rsefrlgTableReader(chunkList, 1, textTableSize);
     mystery_gift_script builder(section30Buffer, mgScriptBuffer);
+
+    rsefrlgTableReader.init();
 
     for(size_t i = 0; i < gbaRomDataArraySize; ++i)
     {
         generateOutputPath(outputPathBuffer, argv[3], "section30", gbaRomDataArray + i);
-        printf("Generating %s...\n", outputPathBuffer);
+        printf("Generating %zu:%s...\n", i, outputPathBuffer);
 
-        builder.build_script(rsefrlgTable, gbaRomDataArray[i], gen3CharsetEng, nullptr, true);
+        builder.build_script(rsefrlgTableReader, gbaRomDataArray[i], gen3CharsetEng, nullptr, true);
 
         FILE *section30OutputFile = fopen(outputPathBuffer, "wb");
         if (!section30OutputFile)
@@ -240,6 +243,7 @@ int main(int argc, char **argv)
         fclose(section30OutputFile);
 
         generateOutputPath(outputPathBuffer, argv[3], "script", gbaRomDataArray + i);
+        printf("Generating %zu:%s...\n", i, outputPathBuffer);
         FILE *mgScriptOutputFile = fopen(outputPathBuffer, "wb");
         if (!mgScriptOutputFile)
         {
