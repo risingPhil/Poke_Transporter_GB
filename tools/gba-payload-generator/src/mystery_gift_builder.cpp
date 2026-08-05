@@ -334,6 +334,7 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     memset(save_section_30 + curr_section30_index, 0, (MAX_PKMN_IN_BOX * POKEMON_SIZE) + MAX_PKMN_IN_BOX);
     curr_section30_index += (MAX_PKMN_IN_BOX * POKEMON_SIZE);
 #endif
+    // dex numbers:
     curr_section30_index += MAX_PKMN_IN_BOX;
 
     // insert text
@@ -598,7 +599,6 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     waitmovement(curr_GBA_rom.npc_id);
     changeSpriteMacro(curr_GBA_rom, 1, spriteLooker.get_loc_in_sec30(curr_GBA_rom));
     callASM(loadPalette.get_loc_in_sec30(curr_GBA_rom));
-    changePaletteMacro(curr_GBA_rom, curr_GBA_rom.npc_id, curr_GBA_rom.npc_palette);
     changePaletteMacro(curr_GBA_rom, curr_GBA_rom.npc_id, 0xA);
     applymovement(curr_GBA_rom.npc_id, movementLookDown.get_loc_in_sec30(curr_GBA_rom));
     callASM(customSoundASM.get_loc_in_sec30(curr_GBA_rom));
@@ -852,6 +852,8 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     mg_script_size = curr_mg_index;
     section30_size = curr_section30_index;
 
+    printf("Mystery Gift Script Size: %d bytes\n", mg_script_size);
+    printf("Mystery Gift Section 30 Size: %d bytes\n", section30_size);
     assert(curr_mg_index <= MG_SCRIPT_SIZE); // Assert that the script is not too large
     assert(curr_section30_index <= 0x4096);   // Assert that the script
 };
