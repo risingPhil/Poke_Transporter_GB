@@ -63,10 +63,8 @@ static u16 calc_crc16(const u8 *buffer, u32 size) // Implementation taken from P
 static void __attribute__((noinline)) injectBoxIntoSection30(PokeBox* box, u8* section30Buffer)
 {
     u8 dex_nums[MAX_PKMN_IN_BOX] = {};
-    PokemonTables tableData;
     u8 *curSection30 = section30Buffer;
 
-    box->setTable(&tableData);
     box->convertAll();
     for (int i = 0; i < MAX_PKMN_IN_BOX; i++) // Add in the Pokemon data
     {
