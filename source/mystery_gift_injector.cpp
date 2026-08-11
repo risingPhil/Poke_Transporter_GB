@@ -1,10 +1,16 @@
 #include <tonc.h>
 #include "mystery_gift_injector.h"
+#include "pokemon_data.h"
 #include "flash_mem.h"
-#include "mystery_gift_builder.h"
 #include "rom_data.h"
 #include "libraries/Pokemon-Gen3-to-Gen-X/include/save.h"
 #include "pokemon_data.h"
+#include "ptgb_save_data_manager.h"
+#include "script_ruby_english_1_2_bin.h"
+#include "section30_ruby_english_1_2_bin.h"
+#include <cstring>
+
+#define MG_SCRIPT_SIZE 0x3E8
 
 // This will need to be modified for the JP releases
 static const u8 em_wonder_card[0x14E] = {
@@ -14,31 +20,100 @@ static const u8 em_wonder_card[0x14E] = {
 static const u8 frlg_wonder_card[0x14E] = {
     0x67, 0x18, 0x00, 0x00, 0xBA, 0xB4, 0xBE, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0xCA, 0xCC, 0xC9, 0xC0, 0xBF, 0xCD, 0xCD, 0xC9, 0xCC, 0x00, 0xC0, 0xBF, 0xC8, 0xC8, 0xBF, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCE, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0x00, 0xBD, 0xD9, 0xE6, 0xE8, 0xDD, 0xDA, 0xDD, 0xD7, 0xD5, 0xE8, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD0, 0xDD, 0xE7, 0xDD, 0xE8, 0x00, 0xE8, 0xDC, 0xD9, 0x00, 0xDC, 0xE3, 0xE9, 0xE7, 0xD9, 0x00, 0xE7, 0xE3, 0xE9, 0xE8, 0xDC, 0x00, 0xE3, 0xDA, 0x00, 0xE8, 0xDC, 0xD9, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0x00, 0x00, 0x00, 0x00, 0xBD, 0xBF, 0xC8, 0xCE, 0xBF, 0xCC, 0x00, 0xE3, 0xE2, 0x00, 0xCD, 0xD9, 0xEA, 0xD9, 0xE2, 0x00, 0xC3, 0xE7, 0xE0, 0xD5, 0xE2, 0xD8, 0x00, 0xE8, 0xE3, 0x00, 0xE6, 0xD9, 0xD7, 0xDD, 0xD9, 0xEA, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xED, 0xE3, 0xE9, 0xE6, 0x00, 0xE8, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0xD9, 0xD8, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBE, 0xE3, 0x00, 0xE2, 0xE3, 0xE8, 0x00, 0xE8, 0xE3, 0xE7, 0xE7, 0x00, 0xE8, 0xDC, 0xDD, 0xE7, 0x00, 0xBF, 0xEC, 0xD7, 0xDC, 0xD5, 0xE2, 0xDB, 0xD9, 0x00, 0xBD, 0xD5, 0xE6, 0xD8, 0x00, 0xD6, 0xD9, 0xDA, 0xE3, 0xE6, 0xD9, 0x00, 0x00, 0x00, 0xE6, 0xD9, 0xD7, 0xD9, 0xDD, 0xEA, 0xDD, 0xE2, 0xDB, 0x00, 0xED, 0xE3, 0xE9, 0xE6, 0x00, 0xE8, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0xD9, 0xD8, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // checksum
 
-bool inject_mystery(PokeBox* box)
+/// function to calculate a 32-bit checksum of a script buffer.
+static u32 calc_checksum32(const u8 *buffer, u32 size)
 {
-    // WARNING: Look right here: we're passing global_memory_buffer to mystery_gift_script to be used as its save_section_30 buffer.
-    // Since we're going to be reusing global_memory_buffer later, we need to be careful about the timing/sequence of operations.
-    // The goal is to use write that save_section_30 to the save as soon as we can.
-    mystery_gift_script script(global_memory_buffer);
+    u16 i;
     u32 checksum = 0;
 
-    script.build_script(box);
+    for (i = 0; i < size; ++i)
+    {
+        checksum += buffer[i];
+    }
+
+    return checksum;
+}
+
+/// function to calculate a 16-bit CRC of a script buffer.
+static u16 calc_crc16(const u8 *buffer, u32 size) // Implementation taken from PokeEmerald Decomp
+{
+    u16 i, j;
+    u16 crc = 0x1121;
+
+    for (i = 0; i < size; ++i)
+    {
+        crc ^= buffer[i];
+        for (j = 0; j < 8; ++j)
+        {
+            if (crc & 1)
+                crc = (crc >> 1) ^ 0x8408;
+            else
+                crc >>= 1;
+        }
+    }
+    return ~crc;
+};
+
+/**
+ * @brief This function injects the PokeBox pokémons into section30 at offset 0x0, which is what the payload expects.
+ *
+ * @param box pointer to the PokeBox instance containing the Pokémon to inject.
+ * @param section30Buffer The buffer representing section 30 of the save file.
+ */
+static void __attribute__((noinline)) injectBoxIntoSection30(PokeBox* box, u8* section30Buffer)
+{
+    u8 dex_nums[MAX_PKMN_IN_BOX] = {};
+    PokemonTables tableData;
+    u8 *curSection30 = section30Buffer;
+
+    box->setTable(&tableData);
+    box->convertAll();
+    for (int i = 0; i < MAX_PKMN_IN_BOX; i++) // Add in the Pokemon data
+    {
+        Gen3Pokemon *curr_pkmn = box->getGen3Pokemon(i);
+        if (curr_pkmn->isValid)
+        {
+            tonccpy(curSection30, curr_pkmn->dataArrayPtr, POKEMON_SIZE);
+
+            dex_nums[i] = curr_pkmn->getSpeciesIndexNumber();
+        }
+
+        curSection30 += POKEMON_SIZE;
+    }
+
+    // Add in the dex numbers
+    tonccpy(curSection30, dex_nums, MAX_PKMN_IN_BOX);
+}
+
+bool inject_mystery(PokeBox* box)
+{
+    u32 checksum;
+    u8 script_buffer[MG_SCRIPT_SIZE];
+
+    // make sure the buffers are filled with zeros.
+    memset(global_memory_buffer, 0, 0x1000);
+    memset(script_buffer, 0, MG_SCRIPT_SIZE);
+
+    //now use the pregenerated script and section30 data.
+    tonccpy(script_buffer, script_ruby_english_1_2_bin, script_ruby_english_1_2_bin_size);
+    tonccpy(global_memory_buffer, section30_ruby_english_1_2_bin, section30_ruby_english_1_2_bin_size);
+
+    // One thing our pregeneration process obviously leaves out is the pokemon data.
+    // so let's add that in now.
+    injectBoxIntoSection30(box, global_memory_buffer);
 
     if (curr_GBA_rom.is_ruby_sapphire())
     {
-        checksum = script.calc_checksum32();
+        checksum = calc_checksum32(script_buffer, MG_SCRIPT_SIZE);
     }
     else
     {
-        checksum = script.calc_crc16();
+        checksum = calc_crc16(script_buffer, MG_SCRIPT_SIZE);
     }
 
     // Add in Pokemon and Dex data
-    // We need to do this NOW, because mystery_gift_script::build_script() actually fills the global_memory_buffer.
     // In the steps after this, we will be recycling the global_memory_buffer to read and write data to other sections of the save.
     // So we really MUST write the generated data now, before we lose it.
-
-    memcpy(global_memory_buffer, script.get_section30(), 0x1000);
 
     update_memory_buffer_checksum(global_memory_buffer, false);
     erase_sector(0x1E000);
@@ -72,7 +147,7 @@ bool inject_mystery(PokeBox* box)
     global_memory_buffer[curr_GBA_rom.offset_script + 3] = checksum >> 24;
 
     // Add in Mystery Script data
-    memcpy(global_memory_buffer + curr_GBA_rom.offset_script + 4, script.get_script(), MG_SCRIPT_SIZE);
+    memcpy(global_memory_buffer + curr_GBA_rom.offset_script + 4, script_buffer, MG_SCRIPT_SIZE);
 
     update_memory_buffer_checksum(global_memory_buffer, false);
     erase_sector(memory_section_array[4]);

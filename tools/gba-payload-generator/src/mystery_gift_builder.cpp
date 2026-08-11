@@ -974,6 +974,7 @@ void mystery_gift_script::checkflag(u16 flag_id)
 
 void mystery_gift_script::virtualgotoif(u8 condition, u32 location)
 {
+    (void)location; //unused parameter, but the add_reference() call in the script is needed.
     value_buffer[0] = 0xBB;
     value_buffer[1] = condition;
     value_buffer[2] = (VIRTUAL_ADDRESS >> 0) & 0xFF;
@@ -985,6 +986,7 @@ void mystery_gift_script::virtualgotoif(u8 condition, u32 location)
 
 void mystery_gift_script::virtualmsgbox(u32 location)
 {
+    (void)location; //unused parameter, but the add_reference() call in the script is needed.
     value_buffer[0] = 0xBD;
     value_buffer[1] = (VIRTUAL_ADDRESS >> 0) & 0xFF;
     value_buffer[2] = (VIRTUAL_ADDRESS >> 8) & 0xFF;
@@ -1415,7 +1417,7 @@ void mystery_gift_script::and1(u8 rd, u8 rm)
  */
 void mystery_gift_script::ldr2(u8 rd, u8 rn, u8 rm)
 {
-    add_asm(0b0101100 << 9 | rm << 6 | rm << 3 | rd);
+    add_asm(0b0101100 << 9 | rm << 6 | rn << 3 | rd);
 }
 /**
  * @brief STRH (1) (Store Register Halfword) stores 16-bit data from a general-purpose register to memory. The addressing mode is useful for accessing structure (record) fields. With an offset of zero, the address produced is the unaltered value of the base register <Rn>.

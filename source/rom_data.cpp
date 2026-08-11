@@ -1,5 +1,5 @@
 #include "rom_data.h"
-#include "mystery_gift_builder.h"
+#include "dbg/debug_mode.h"
 #include "pokemon_data.h"
 #include "text_engine.h"
 #include "ptgb_save_data_manager.h"

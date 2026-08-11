@@ -35,15 +35,6 @@ static const uint16_t gen3CharsetEng[256]{
     0x20, 0x20, 0x15E, 0x23C, 0x206, 0x1B2, 0x147, 0x19E
 };
 
-static const std::pair<const char *, int> languageMap[] = {
-    {"english", LANG_ENG},
-    {"french", LANG_FRE},
-    {"spanish", LANG_SPA},
-    {"italian", LANG_ITA},
-    {"german", LANG_GER},
-    {"japanese", LANG_JPN}
-};
-
 static const std::pair<uint32_t, const char *> romIdStringMap[] = {
     {RUBY_ID, "ruby"},
     {SAPPHIRE_ID, "sapphire"},
@@ -66,23 +57,6 @@ static const std::pair<char, const char *> romLanguageStringMap[] = {
     { LANG_ITA, "italian" },
     { LANG_SPA, "spanish" }
 };
-
-/**
- * @brief This function parses the language cmdline arg and returns the corresponding language code.
- * Note: if the language is not recognized, it defaults to LANG_ENG (English).
- */
-static char parseLanguageArg(const char *languageArg)
-{
-    size_t numLangs = sizeof(languageMap) / sizeof(languageMap[0]);
-    for (size_t i = 0; i < numLangs; ++i)
-    {
-        if (strcmp(languageArg, languageMap[i].first) == 0)
-        {
-            return languageMap[i].second;
-        }
-    }
-    return LANG_ENG;
-}
 
 /**
  * @brief Template utility function to look up a string conversion from a pair list.
@@ -163,55 +137,20 @@ static void generateOutputPath(char *outputPathBuffer, const char *outputDir, co
 
 static void printUsage()
 {
-    printf("Usage: mystery_gift_builder path/to/RSEFRLG_text_table.bin language outputPath\n");
+    printf("Usage: mystery_gift_builder path/to/RSEFRLG_text_table.bin outputPath\n");
     printf("  path/to/RSEFRLG_text_table.bin: Path to the input RSEFRLG text table file.\n");
-    printf("  language: (english, french, spanish, italian, german, japanese)\n");
     printf("  outputPath: Path to a directory to output our language-specific payloads to.\n\n");
     printf("gba-payload-generator will generate all payloads for the specified language.\n");
 }
 
-int main(int argc, char **argv)
+static void generatePayloadsForLanguage(const char* outputPath, char languageCode, u8 *textTableBuffer, uint32_t textTableSize)
 {
     u8 section30Buffer[FLASH_SECTOR_SIZE];
     u8 mgScriptBuffer[MG_SCRIPT_SIZE];
     char outputPathBuffer[PATH_MAX];
-    u8 *textTableBuffer = nullptr;
-    uint32_t textTableSize = 0;
     const ROM_DATA *gbaRomDataArray;
     uint16_t gbaRomDataArraySize;
-    char languageCode;
 
-    // set up dependencies.
-    FILE *text_table_file = fopen(argv[1], "rb");
-    if (!text_table_file)
-    {
-        fprintf(stderr, "Error: Could not open RSEFRLG text table file %s!\n", argv[1]);
-        printUsage();
-        return 1;
-    }
-
-    // determine file size and allocate buffer
-    fseek(text_table_file, 0, SEEK_END);
-    textTableSize = ftell(text_table_file);
-    fseek(text_table_file, 0, SEEK_SET);
-    textTableBuffer = new u8[textTableSize];
-
-    // read RSEFRLG text table into buffer
-    size_t read_size = fread(textTableBuffer, 1, textTableSize, text_table_file);
-    if (read_size != textTableSize)
-    {
-        fprintf(stderr, "Error: Could not read RSEFRLG text table file %s!\n", argv[1]);
-        printUsage();
-
-        delete[] textTableBuffer;
-        textTableBuffer = nullptr;
-
-        fclose(text_table_file);
-        return 1;
-    }
-    fclose(text_table_file);
-
-    languageCode = parseLanguageArg(argv[2]);
     pickGBARomDataArray(languageCode, gbaRomDataArray, gbaRomDataArraySize);
     
     // now we can start the real work.
@@ -223,7 +162,7 @@ int main(int argc, char **argv)
 
     for(size_t i = 0; i < gbaRomDataArraySize; ++i)
     {
-        generateOutputPath(outputPathBuffer, argv[3], "section30", gbaRomDataArray + i);
+        generateOutputPath(outputPathBuffer, outputPath, "section30", gbaRomDataArray + i);
         printf("Generating %zu:%s...\n", i, outputPathBuffer);
 
         builder.build_script(rsefrlgTableReader, gbaRomDataArray[i], gen3CharsetEng, nullptr, true);
@@ -242,7 +181,7 @@ int main(int argc, char **argv)
         }
         fclose(section30OutputFile);
 
-        generateOutputPath(outputPathBuffer, argv[3], "script", gbaRomDataArray + i);
+        generateOutputPath(outputPathBuffer, outputPath, "script", gbaRomDataArray + i);
         printf("Generating %zu:%s...\n", i, outputPathBuffer);
         FILE *mgScriptOutputFile = fopen(outputPathBuffer, "wb");
         if (!mgScriptOutputFile)
@@ -257,6 +196,57 @@ int main(int argc, char **argv)
             fprintf(stderr, "Error: Could not write to output file %s!\n", outputPathBuffer);
         }
         fclose(mgScriptOutputFile);
+    }
+}
+
+int main(int argc, char **argv)
+{
+    u8 *textTableBuffer = nullptr;
+    uint32_t textTableSize = 0;
+    char languageCode;
+
+    if(argc != 3)
+    {
+        printUsage();
+        return 1;
+    }
+
+    // set up dependencies.
+    FILE *text_table_file = fopen(argv[1], "rb");
+    if (!text_table_file)
+    {
+        fprintf(stderr, "Error: Could not open RSEFRLG text table file %s!\n", argv[1]);
+        printUsage();
+        return 1;
+    }
+
+    // determine file size and allocate buffer
+    fseek(text_table_file, 0, SEEK_END);
+    textTableSize = ftell(text_table_file);
+    fseek(text_table_file, 0, SEEK_SET);
+    textTableBuffer = new u8[textTableSize];
+
+    // read RSEFRLG text table into buffer
+    const size_t read_size = fread(textTableBuffer, 1, textTableSize, text_table_file);
+    if (read_size != textTableSize)
+    {
+        fprintf(stderr, "Error: Could not read RSEFRLG text table file %s!\n", argv[1]);
+        printUsage();
+
+        delete[] textTableBuffer;
+        textTableBuffer = nullptr;
+
+        fclose(text_table_file);
+        return 1;
+    }
+    fclose(text_table_file);
+
+    const char langCodes[] = { LANG_ENG, LANG_FRE, LANG_SPA, LANG_ITA, LANG_GER, LANG_JPN };
+
+    for(char langCode : langCodes)
+    {
+        printf("Generating payloads for language code %c...\n", langCode);
+        generatePayloadsForLanguage(argv[2], langCode, textTableBuffer, textTableSize);
     }
 
     delete[] textTableBuffer;
