@@ -339,9 +339,7 @@ void mystery_gift_script::build_script(PokeBox *box)
     // it won't get called automatically because it's part of the union (and neither will the destructor)
     new (&decompressed_store.tables.data) PokemonTables();
 
-    // TODO make it so that the table is added here(?)
-    box->setTable(&decompressed_store.tables.data);
-    box->convertAll();
+    box->convertAll(&decompressed_store.tables.data);
     for (int i = 0; i < box->getNumInBox(); i++) // Add in the Pokemon data
     {
         Gen3Pokemon *curr_pkmn = box->getGen3Pokemon(i);

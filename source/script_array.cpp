@@ -17,8 +17,7 @@
 #include <tonc.h>
 
 int last_error;
-PokemonTables pokeTable;
-PokeBox box(&pokeTable);
+PokeBox box;
 
 Select_Menu langs(false, LANG_MENU, 18, 0);
 Select_Menu games(false, CART_MENU, 18, 0);
