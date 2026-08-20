@@ -56,6 +56,7 @@ static u16 calc_crc16(const u8 *buffer, u32 size) // Implementation taken from P
 
 /**
  * @brief This function injects the PokeBox pokémons into section30 at offset 0x0, which is what the payload expects.
+ * It assumes that all the pokemons in the box are already converted. (should be done by script_array.cpp)
  *
  * @param box pointer to the PokeBox instance containing the Pokémon to inject.
  * @param section30Buffer The buffer representing section 30 of the save file.
@@ -65,7 +66,6 @@ static void __attribute__((noinline)) injectBoxIntoSection30(PokeBox* box, u8* s
     u8 dex_nums[MAX_PKMN_IN_BOX] = {};
     u8 *curSection30 = section30Buffer;
 
-    box->convertAll();
     for (int i = 0; i < MAX_PKMN_IN_BOX; i++) // Add in the Pokemon data
     {
         Gen3Pokemon *curr_pkmn = box->getGen3Pokemon(i);

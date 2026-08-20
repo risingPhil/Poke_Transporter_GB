@@ -17,8 +17,7 @@
 #include <tonc.h>
 
 int last_error;
-PokemonTables pokeTable;
-PokeBox box(&pokeTable);
+PokeBox box;
 
 Select_Menu langs(false, LANG_MENU, 18, 0);
 Select_Menu games(false, CART_MENU, 18, 0);
@@ -487,55 +486,10 @@ const script_obj_params event_script_params[SCRIPT_SIZE] = {
     {}, // COND_CHECK_MISSINGNO
 };
 
-void populate_lang_menu()
+static void __attribute__((noinline)) convertPokeBox()
 {
-    langs.clear_options();
-
-    langs.add_option(GENERAL_option_english, ENG_ID);
-    langs.add_option(GENERAL_option_japanese, JPN_ID);
-    langs.add_option(GENERAL_option_spanish, SPA_ID);
-    langs.add_option(GENERAL_option_french, FRE_ID);
-    langs.add_option(GENERAL_option_german, GER_ID);
-    langs.add_option(GENERAL_option_italian, ITA_ID);
-    langs.add_option(GENERAL_option_korean, KOR_ID);
-    // TODO: Removing the cancel option for the time being, since canceling the
-    // link trade when there is no link connection crashes the game
-    // langs.add_option(GENERAL_option_cancel, UINT8_MAX);
-}
-
-void populate_game_menu(int lang)
-{
-    games.clear_options();
-
-    switch (lang)
-    {
-    case (JPN_ID):
-        games.add_option(GENERAL_option_red, RED_ID);
-        games.add_option(GENERAL_option_green, GREEN_ID);
-        games.add_option(GENERAL_option_blue, BLUE_ID);
-        games.add_option(GENERAL_option_yellow, YELLOW_ID);
-        games.add_option(GENERAL_option_gold, GOLD_ID);
-        games.add_option(GENERAL_option_silver, SILVER_ID);
-        games.add_option(GENERAL_option_crystal, CRYSTAL_ID);
-        games.add_option(GENERAL_option_cancel, UINT8_MAX);
-        break;
-
-    case (KOR_ID):
-        games.add_option(GENERAL_option_gold, GOLD_ID);
-        games.add_option(GENERAL_option_silver, SILVER_ID);
-        games.add_option(GENERAL_option_cancel, UINT8_MAX);
-        break;
-
-    default:
-        games.add_option(GENERAL_option_red, RED_ID);
-        games.add_option(GENERAL_option_blue, BLUE_ID);
-        games.add_option(GENERAL_option_yellow, YELLOW_ID);
-        games.add_option(GENERAL_option_gold, GOLD_ID);
-        games.add_option(GENERAL_option_silver, SILVER_ID);
-        games.add_option(GENERAL_option_crystal, CRYSTAL_ID);
-        games.add_option(GENERAL_option_cancel, UINT8_MAX);
-        break;
-    }
+    PokemonTables tables;
+    box.convertAll(&tables);
 }
 
 bool run_conditional(int index)
@@ -709,8 +663,8 @@ bool run_conditional(int index)
             obj_unhide(gb_flag, 0);
             obj_set_pos(gb_flag, 1.5 * 8, 14 * 8);
 
-            globalLinkCable.skipPrint = false;
-            globalLinkCable.pauseOnPacket = true;
+            // globalLinkCable.skipPrint = false;
+            // globalLinkCable.pauseOnPacket = true;
 
             byte boxDataArray[1122];
 
@@ -727,9 +681,9 @@ bool run_conditional(int index)
         return true;
 
     case CMD_IMPORT_POKEMON:
+        convertPokeBox();
         inject_mystery(&box);
         return true;
-
     case CMD_BACK_TO_MENU:
         set_text_exit();
         REG_BG1HOFS = 0;
