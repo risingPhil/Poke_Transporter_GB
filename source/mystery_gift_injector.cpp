@@ -303,6 +303,7 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
     // assume we found the entry.
     // start with section30
     memset(section30Buffer, 0, 0x1000);
+    memset(tempBuffer, 0, 0x1000);
     LZ77UnCompWram(section30_ruby_english_1_0_lz10_bin, section30Buffer);
     section30PatchesReader.init(decompressionBuffer, DEFAULT_CHUNK_SIZE);
     
@@ -349,6 +350,7 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
 
     // now do the same with scriptBuffer
     memset(scriptBuffer, 0, MG_SCRIPT_SIZE);
+    memset(tempBuffer, 0, 0x1000);
     LZ77UnCompWram(script_ruby_english_1_0_lz10_bin, scriptBuffer);
     scriptPatchesReader.init(decompressionBuffer, DEFAULT_CHUNK_SIZE);
 
