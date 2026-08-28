@@ -247,9 +247,10 @@ $(GENERATE_STAMP): compress_lz10.sh | data to_compress generated_dir
 	@echo
 	@echo "----------------------------------------------------------------"
 	@echo
-	@find $(FILE_CONTAINERS) -name "*.containerdef" -print0 | xargs -0 -n1 tools/make-file-container/make-file-container -H $(BUILD) to_compress
 	@find tools/text_helper/build -name "*.containerdef" -print0 | xargs -0 -n1 tools/make-file-container/make-file-container to_compress
-	tools/gba-payload-generator/gba-payload-generator to_compress/RSEFRLG.chunk0.bin data/
+	tools/generate_payloads.sh build/ to_compress/RSEFRLG.chunk0.bin
+	@find build/bps-patches -name "*.containerdef" -print0 | xargs -0 -n1 tools/make-file-container/make-file-container -H $(BUILD) to_compress
+	@find $(FILE_CONTAINERS) -name "*.containerdef" -print0 | xargs -0 -n1 tools/make-file-container/make-file-container -H $(BUILD) to_compress
 	@echo "Compressing bin files!" 
 	@echo -n "["
 	@find to_compress -name "*.bin" -print0 | xargs -0 -n1 $(SRCDIR)/compress_lz10.sh

@@ -6,24 +6,124 @@
 #include "libraries/Pokemon-Gen3-to-Gen-X/include/save.h"
 #include "pokemon_data.h"
 #include "ptgb_save_data_manager.h"
-#include "script_ruby_english_1_2_bin.h"
-#include "section30_ruby_english_1_2_bin.h"
+#include "FileContainerReader.h"
+#include "script_patches.h"
+#include "section30_patches.h"
+#include "script_ruby_english_1_0_lz10_bin.h"
+#include "script_patches_chunk0_lz10_bin.h"
+#include "script_patches_chunk1_lz10_bin.h"
+#include "section30_ruby_english_1_0_lz10_bin.h"
+#include "section30_patches_chunk0_lz10_bin.h"
+#include "section30_patches_chunk1_lz10_bin.h"
+#include "section30_patches_chunk2_lz10_bin.h"
+#include <cstdlib>
 #include <cstring>
+
+extern "C"
+{
+    void bps_patch(const u8 *src, u8 *out, const u8 *patch, u32 patch_size);
+}
 
 #define MG_SCRIPT_SIZE 0x3E8
 
+// These defines are there because rom_data defines values that
+// occupy more bytes/bits than needed.
+// We use these to create a table with a packed key below: patchFileTable
+// also refer to the comment on PACK_PATCH_KEY() for more details on how the key is packed.
+#define MAP_RUBY 0
+#define MAP_SAPPHIRE 1
+#define MAP_FIRERED 2
+#define MAP_LEAFGREEN 3
+#define MAP_EMERALD 4
+
+#define MAP_JAPANESE 0
+#define MAP_ENGLISH 1
+#define MAP_FRENCH 2
+#define MAP_GERMAN 3
+#define MAP_ITALIAN 4
+#define MAP_SPANISH 5
+
+
+// So, we need to associate the rom_data values with a specific patch file to convert the
+// game-based payload to our specific language variant.
+// But we only have indexes and their enum namings.
+// So we need to map them.
+// The thing is: using the existing RUBY_ID and LANG_ENG defines, would make this table much larger than it needs to be.
+// There are 5 game variants (3 bits), and 6 languages (3 bits) and the highest version of those roms is 1.2 (2 bits)
+// So we can pack this data into a single byte.
+#define PACK_PATCH_KEY(game, lang, version) (((game) << 5) | ((lang) << 2) | (version))
+
+typedef struct PatchFileTableEntry
+{
+    u8 key;
+    u8 patchIndex;
+} PatchFileTableEntry;
+
+// We only need to have a single map of the patch files, because the order and size of the section30 and script patches are exactly the same.
+static constexpr PatchFileTableEntry patchFileTable[] =
+{
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_ENGLISH, VERS_1_2), (u8)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_2 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_ENGLISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_ENGLISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_ENGLISH_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_ENGLISH, VERS_1_2), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_ENGLISH_1_2 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_ENGLISH_1_0 },
+    { PACK_PATCH_KEY(MAP_EMERALD, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_EMERALD_ENGLISH_1_0 },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_FIRERED_ENGLISH_1_0 },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_ENGLISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_FIRERED_ENGLISH_1_1 },
+    { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_ENGLISH_1_0 },
+    { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_ENGLISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_ENGLISH_1_1 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_FRENCH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_RUBY_FRENCH_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_FRENCH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_RUBY_FRENCH_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_FRENCH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_FRENCH_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_FRENCH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_FRENCH_1_0 },
+    { PACK_PATCH_KEY(MAP_EMERALD, MAP_FRENCH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_EMERALD_FRENCH_1_0 },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_FRENCH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_FIRERED_FRENCH_1_0 },
+    { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_FRENCH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_FRENCH_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_GERMAN, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_RUBY_GERMAN_1_1 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_GERMAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_RUBY_GERMAN_1_0 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_GERMAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_GERMAN_1_0 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_GERMAN, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_GERMAN_1_1 },
+    { PACK_PATCH_KEY(MAP_EMERALD, MAP_GERMAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_EMERALD_GERMAN_1_0 },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_GERMAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_FIRERED_GERMAN_1_0 },
+    { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_GERMAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_GERMAN_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_ITALIAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_RUBY_ITALIAN_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_ITALIAN, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_RUBY_ITALIAN_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_ITALIAN, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_ITALIAN_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_ITALIAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_ITALIAN_1_0 },
+    { PACK_PATCH_KEY(MAP_EMERALD, MAP_ITALIAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_EMERALD_ITALIAN_1_0 },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_ITALIAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_FIRERED_ITALIAN_1_0 },
+    { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_ITALIAN, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_ITALIAN_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_JAPANESE, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_RUBY_JAPANESE_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_JAPANESE, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_RUBY_JAPANESE_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_JAPANESE, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_JAPANESE_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_JAPANESE, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_JAPANESE_1_0 },
+    { PACK_PATCH_KEY(MAP_EMERALD, MAP_JAPANESE, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_EMERALD_JAPANESE_1_0 },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_JAPANESE, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_FIRERED_JAPANESE_1_1 },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_JAPANESE, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_FIRERED_JAPANESE_1_0 },
+    { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_JAPANESE, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_JAPANESE_1_1 },
+    { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_JAPANESE, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_JAPANESE_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_SPANISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_RUBY_SPANISH_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_SPANISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_RUBY_SPANISH_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_SPANISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_SPANISH_1_1 },
+    { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_SPANISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_SPANISH_1_0 },
+    { PACK_PATCH_KEY(MAP_EMERALD, MAP_SPANISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_EMERALD_SPANISH_1_0 },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_SPANISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_FIRERED_SPANISH_1_0 },
+    { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_SPANISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_SPANISH_1_0 }
+};
+
 // This will need to be modified for the JP releases
-static const u8 em_wonder_card[0x14E] = {
+static constexpr u8 em_wonder_card[0x14E] = {
     0x08, 0x6E, 0x00, 0x00, 0xBA, 0xB4, 0xBE, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0xCA, 0xCC, 0xC9, 0xC0, 0xBF, 0xCD, 0xCD, 0xC9, 0xCC, 0x00, 0xC0, 0xBF, 0xC8, 0xC8, 0xBF, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCE, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0x00, 0xBD, 0xD9, 0xE6, 0xE8, 0xDD, 0xDA, 0xDD, 0xD7, 0xD5, 0xE8, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD0, 0xDD, 0xE7, 0xDD, 0xE8, 0x00, 0xE8, 0xDC, 0xD9, 0x00, 0xDC, 0xE3, 0xE9, 0xE7, 0xD9, 0x00, 0xE7, 0xE3, 0xE9, 0xE8, 0xDC, 0xD9, 0xD5, 0xE7, 0xE8, 0x00, 0xE3, 0xDA, 0x00, 0xE8, 0xDC, 0xD9, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xBD, 0xBF, 0xC8, 0xCE, 0xBF, 0xCC, 0x00, 0xDD, 0xE2, 0x00, 0xCD, 0xE3, 0xE3, 0xE8, 0xE3, 0xE4, 0xE3, 0xE0, 0xDD, 0xE7, 0x00, 0xBD, 0xDD, 0xE8, 0xED, 0x00, 0xE8, 0xE3, 0x00, 0xE6, 0xD9, 0xD7, 0xDD, 0xD9, 0xEA, 0xD9, 0x00, 0x00, 0x00, 0x00, 0xED, 0xE3, 0xE9, 0xE6, 0x00, 0xE8, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0xD9, 0xD8, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBE, 0xE3, 0x00, 0xE2, 0xE3, 0xE8, 0x00, 0xE8, 0xE3, 0xE7, 0xE7, 0x00, 0xE8, 0xDC, 0xDD, 0xE7, 0x00, 0xBF, 0xEC, 0xD7, 0xDC, 0xD5, 0xE2, 0xDB, 0xD9, 0x00, 0xBD, 0xD5, 0xE6, 0xD8, 0x00, 0xD6, 0xD9, 0xDA, 0xE3, 0xE6, 0xD9, 0x00, 0x00, 0x00, 0xE6, 0xD9, 0xD7, 0xD9, 0xDD, 0xEA, 0xDD, 0xE2, 0xDB, 0x00, 0xED, 0xE3, 0xE9, 0xE6, 0x00, 0xE8, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0xD9, 0xD8, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 // static u8 rs_wonder_card[0x14E] = {
 //    0xCE, 0x7C, 0x00, 0x00, 0xBA, 0xB4, 0xBE, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0xCA, 0xCC, 0xC9, 0xC0, 0xBF, 0xCD, 0xCD, 0xC9, 0xCC, 0x00, 0xC0, 0xBF, 0xC8, 0xC8, 0xBF, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCE, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0x00, 0xBD, 0xD9, 0xE6, 0xE8, 0xDD, 0xDA, 0xDD, 0xD7, 0xD5, 0xE8, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD0, 0xDD, 0xE7, 0xDD, 0xE8, 0x00, 0xE8, 0xDC, 0xD9, 0x00, 0xDC, 0xE3, 0xE9, 0xE7, 0xD9, 0x00, 0xE7, 0xE3, 0xE9, 0xE8, 0xDC, 0xD9, 0xD5, 0xE7, 0xE8, 0x00, 0xE3, 0xDA, 0x00, 0xE8, 0xDC, 0xD9, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xBD, 0xBF, 0xC8, 0xCE, 0xBF, 0xCC, 0x00, 0xDD, 0xE2, 0x00, 0xC7, 0xE3, 0xE7, 0xE7, 0xD8, 0xD9, 0xD9, 0xE4, 0x00, 0xBD, 0xDD, 0xE8, 0xED, 0x00, 0xE8, 0xE3, 0x00, 0xE6, 0xD9, 0xD7, 0xDD, 0xD9, 0xEA, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xED, 0xE3, 0xE9, 0xE6, 0x00, 0xE8, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0xD9, 0xD8, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBE, 0xE3, 0x00, 0xE2, 0xE3, 0xE8, 0x00, 0xE8, 0xE3, 0xE7, 0xE7, 0x00, 0xE8, 0xDC, 0xDD, 0xE7, 0x00, 0xBF, 0xEC, 0xD7, 0xDC, 0xD5, 0xE2, 0xDB, 0xD9, 0x00, 0xBD, 0xD5, 0xE6, 0xD8, 0x00, 0xD6, 0xD9, 0xDA, 0xE3, 0xE6, 0xD9, 0x00, 0x00, 0x00, 0xE6, 0xD9, 0xD7, 0xD9, 0xDD, 0xEA, 0xDD, 0xE2, 0xDB, 0x00, 0xED, 0xE3, 0xE9, 0xE6, 0x00, 0xE8, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0xD9, 0xD8, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // checksum
-static const u8 frlg_wonder_card[0x14E] = {
+static constexpr u8 frlg_wonder_card[0x14E] = {
     0x67, 0x18, 0x00, 0x00, 0xBA, 0xB4, 0xBE, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0xCA, 0xCC, 0xC9, 0xC0, 0xBF, 0xCD, 0xCD, 0xC9, 0xCC, 0x00, 0xC0, 0xBF, 0xC8, 0xC8, 0xBF, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCE, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0x00, 0xBD, 0xD9, 0xE6, 0xE8, 0xDD, 0xDA, 0xDD, 0xD7, 0xD5, 0xE8, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD0, 0xDD, 0xE7, 0xDD, 0xE8, 0x00, 0xE8, 0xDC, 0xD9, 0x00, 0xDC, 0xE3, 0xE9, 0xE7, 0xD9, 0x00, 0xE7, 0xE3, 0xE9, 0xE8, 0xDC, 0x00, 0xE3, 0xDA, 0x00, 0xE8, 0xDC, 0xD9, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0x00, 0x00, 0x00, 0x00, 0xBD, 0xBF, 0xC8, 0xCE, 0xBF, 0xCC, 0x00, 0xE3, 0xE2, 0x00, 0xCD, 0xD9, 0xEA, 0xD9, 0xE2, 0x00, 0xC3, 0xE7, 0xE0, 0xD5, 0xE2, 0xD8, 0x00, 0xE8, 0xE3, 0x00, 0xE6, 0xD9, 0xD7, 0xDD, 0xD9, 0xEA, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xED, 0xE3, 0xE9, 0xE6, 0x00, 0xE8, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0xD9, 0xD8, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBE, 0xE3, 0x00, 0xE2, 0xE3, 0xE8, 0x00, 0xE8, 0xE3, 0xE7, 0xE7, 0x00, 0xE8, 0xDC, 0xDD, 0xE7, 0x00, 0xBF, 0xEC, 0xD7, 0xDC, 0xD5, 0xE2, 0xDB, 0xD9, 0x00, 0xBD, 0xD5, 0xE6, 0xD8, 0x00, 0xD6, 0xD9, 0xDA, 0xE3, 0xE6, 0xD9, 0x00, 0x00, 0x00, 0xE6, 0xD9, 0xD7, 0xD9, 0xDD, 0xEA, 0xDD, 0xE2, 0xDB, 0x00, 0xED, 0xE3, 0xE9, 0xE6, 0x00, 0xE8, 0xE6, 0xD5, 0xE2, 0xE7, 0xDA, 0xD9, 0xE6, 0xD9, 0xD8, 0x00, 0xCA, 0xC9, 0xC5, 0x1B, 0xC7, 0xC9, 0xC8, 0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // checksum
 
 /// function to calculate a 32-bit checksum of a script buffer.
 static u32 calc_checksum32(const u8 *buffer, u32 size)
 {
-    u16 i;
+    u32 i;
     u32 checksum = 0;
 
     for (i = 0; i < size; ++i)
@@ -37,7 +137,7 @@ static u32 calc_checksum32(const u8 *buffer, u32 size)
 /// function to calculate a 16-bit CRC of a script buffer.
 static u16 calc_crc16(const u8 *buffer, u32 size) // Implementation taken from PokeEmerald Decomp
 {
-    u16 i, j;
+    u32 i, j;
     u16 crc = 0x1121;
 
     for (i = 0; i < size; ++i)
@@ -83,18 +183,185 @@ static void __attribute__((noinline)) injectBoxIntoSection30(PokeBox* box, u8* s
     tonccpy(curSection30, dex_nums, MAX_PKMN_IN_BOX);
 }
 
+static void pickPatchFiles(u32 &gamePatchFile, u32 &specificPatchFile)
+{
+    u32 simplifiedGameCode;
+    u32 simplifiedLanguageCode;
+
+    switch(curr_GBA_rom.gamecode)
+    {
+        case RUBY_ID:
+            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_0;
+            simplifiedGameCode = MAP_RUBY;
+            break;
+        case SAPPHIRE_ID:
+            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_SAPPHIRE_ENGLISH_1_0;
+            simplifiedGameCode = MAP_SAPPHIRE;
+            break;
+        case FIRERED_ID:
+            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_FIRERED_ENGLISH_1_0;
+            simplifiedGameCode = MAP_FIRERED;
+            break;
+        case LEAFGREEN_ID:
+            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_LEAFGREEN_ENGLISH_1_0;
+            simplifiedGameCode = MAP_LEAFGREEN;
+            break;
+        case EMERALD_ID:
+        default:
+            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_EMERALD_ENGLISH_1_0;
+            simplifiedGameCode = MAP_EMERALD;
+            break;
+    }
+
+    switch(curr_GBA_rom.language)
+    {
+        case LANG_JPN:
+            simplifiedLanguageCode = MAP_JAPANESE;
+            break;
+        case LANG_ENG:
+            simplifiedLanguageCode = MAP_ENGLISH;
+            break;
+        case LANG_FRE:
+            simplifiedLanguageCode = MAP_FRENCH;
+            break;
+        case LANG_GER:
+            simplifiedLanguageCode = MAP_GERMAN;
+            break;
+        case LANG_ITA:
+            simplifiedLanguageCode = MAP_ITALIAN;
+            break;
+        case LANG_SPA:
+            simplifiedLanguageCode = MAP_SPANISH;
+            break;
+        default:
+            simplifiedLanguageCode = MAP_ENGLISH;
+            break;
+    }
+
+    const u8 mapKey = PACK_PATCH_KEY(simplifiedGameCode, simplifiedLanguageCode, (u8)curr_GBA_rom.version);
+    for(u32 i=0; i < sizeof(patchFileTable) / sizeof(patchFileTable[0]); ++i)
+    {
+        if(patchFileTable[i].key == mapKey)
+        {
+            specificPatchFile = patchFileTable[i].patchIndex;
+            break;
+        }
+    }
+}
+
+/**
+ * @brief This function reconstructs the pregenerated payload for section30 and the script buffer.
+ * The way it works is this:
+ * - We have stored the english ruby 1.0 payload (section30 + scriptbuffer) in compressed form.
+ * - We have created BPS patches to convert this payload from english ruby to english <gametype> (e.g. sapphire, emerald, ...)
+ * - We have created another BPS patch to convert the english <gametype> payload to the specific language variant of the game.
+ * 
+ * This is all done to conserve space as much as possible and benefit most from compression. 
+ * 
+ * So, in order to reconstruct the payload for a specific game and language, we need to:
+ * 1. Decompress the english ruby payload into section30Buffer and scriptBuffer.
+ * 2. Determine the 2 patches required (transform to right gametype, transform to right language) for both scriptBuffer and section30Buffer.
+ *    (4 patches total)
+ * 3. uncompress these patches from the filecontainer.
+ * 4. Apply these patches.
+ * 
+ * This function attempts to do it in a way that requires the least amount of IWRAM possible.
+ * One way we do that is by reusing the same decompression buffer for both file containers.
+ * 
+ * WARNING: This function will require more than 6KB of additional IWRAM for decompression buffer and temp buffer!
+ * NOTE: __attribute__((noinline)) is used to ensure this function gets its own stack frame and therefore the local
+ * buffers don't leak into the caller's stack frame. This is important because IWRAM consumption is a big concern in PTGB.
+ */
+static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* section30Buffer, u8* scriptBuffer)
+{
+    u8 decompressionBuffer[DEFAULT_CHUNK_SIZE];
+    u8 tempBuffer[4096];
+    u32 gamePatchFile;
+    u32 specificPatchFile;
+    u32 patchFileSize;
+    u8 *patchBuffer;
+
+    const u8* section30PatchesChunkList[] = {
+        section30_patches_chunk0_lz10_bin,
+        section30_patches_chunk1_lz10_bin,
+        section30_patches_chunk2_lz10_bin
+    };
+
+    const u8* scriptPatchesChunkList[] = {
+        script_patches_chunk0_lz10_bin,
+        script_patches_chunk1_lz10_bin
+    };
+
+    FileContainerReader section30PatchesReader(section30PatchesChunkList, sizeof(section30PatchesChunkList) / sizeof(section30PatchesChunkList[0]));
+    FileContainerReader scriptPatchesReader(scriptPatchesChunkList, sizeof(scriptPatchesChunkList) / sizeof(scriptPatchesChunkList[0]));
+
+    // first determine the patch indexes needed to convert the base payloads to the specific game.
+    pickPatchFiles(gamePatchFile, specificPatchFile);
+
+    // assume we found the entry.
+    // start with section30
+    memset(section30Buffer, 0, 0x1000);
+    LZ77UnCompWram(section30_ruby_english_1_0_lz10_bin, section30Buffer);
+    section30PatchesReader.init(decompressionBuffer, DEFAULT_CHUNK_SIZE);
+    
+    // Note: you may think it's peculiar that we're malloc'ing patchBuffer below.
+    // But here's the dilemma: the files in the file container may span multiple chunks. 
+    // (mostly the last file in each chunk)
+    // Therefore using getPointerToFileInDecompressionBuffer() would be unsafe.
+    // We could've used the @noSpanChunks directive in the .containerdef file to overcome that.
+    // However, then we're hit by an additional problem: We've constructed patchFileTable above using the script_patches
+    // indexes, relying on those to be consistent/representative for both the section30 and script patch filecontainers.
+    // but section30 is much larger than script. Therefore the patches don't have the same filesizes either.
+    // This would result in @noSpanChunks injecting a different number of dummy files in each filecontainer, 
+    // which would break the index consistency.
+    //
+    // You might argue that we might as well use a statically allocated buffer for the patch.
+    // However, our IWRAM consumption is already quite high here. And malloc() will just use unused space at the end of EWRAM. 
+    // (where our multiboot rom resides)
+
+    // turn the base (english) payload into the english <gametype> payload.
+    // the result will be stored in tempBuffer
+    patchFileSize = section30PatchesReader.getFileSize(gamePatchFile);
+    patchBuffer = (u8*)malloc(patchFileSize);
+    section30PatchesReader.readFile(gamePatchFile, patchBuffer);
+    bps_patch(section30Buffer, tempBuffer, patchBuffer, patchFileSize);
+    free(patchBuffer);
+
+    // now turn the english <gametype> payload into the specific language payload.
+    // the result will be stored back in section30Buffer
+    patchFileSize = section30PatchesReader.getFileSize(specificPatchFile);
+    patchBuffer = (u8*)malloc(patchFileSize);
+    section30PatchesReader.readFile(specificPatchFile, patchBuffer);
+    bps_patch(tempBuffer, section30Buffer, patchBuffer, patchFileSize);
+    free(patchBuffer);
+
+    // now do the same with scriptBuffer
+    memset(scriptBuffer, 0, MG_SCRIPT_SIZE);
+    LZ77UnCompWram(script_ruby_english_1_0_lz10_bin, scriptBuffer);
+    scriptPatchesReader.init(decompressionBuffer, DEFAULT_CHUNK_SIZE);
+
+    patchFileSize = scriptPatchesReader.getFileSize(gamePatchFile);
+    patchBuffer = (u8*)malloc(patchFileSize);
+    scriptPatchesReader.readFile(gamePatchFile, patchBuffer);
+    bps_patch(scriptBuffer, tempBuffer, patchBuffer, patchFileSize);
+    free(patchBuffer);
+
+    patchFileSize = scriptPatchesReader.getFileSize(specificPatchFile);
+    patchBuffer = (u8*)malloc(patchFileSize);
+    scriptPatchesReader.readFile(specificPatchFile, patchBuffer);
+    bps_patch(tempBuffer, scriptBuffer, patchBuffer, patchFileSize);
+    free(patchBuffer);
+
+    patchBuffer = nullptr;
+}
+
+
 bool inject_mystery(PokeBox* box)
 {
     u32 checksum;
     u8 script_buffer[MG_SCRIPT_SIZE];
 
-    // make sure the buffers are filled with zeros.
-    memset(global_memory_buffer, 0, 0x1000);
-    memset(script_buffer, 0, MG_SCRIPT_SIZE);
-
-    //now use the pregenerated script and section30 data.
-    tonccpy(script_buffer, script_ruby_english_1_2_bin, script_ruby_english_1_2_bin_size);
-    tonccpy(global_memory_buffer, section30_ruby_english_1_2_bin, section30_ruby_english_1_2_bin_size);
+    reconstruct_pregenerated_payloads(global_memory_buffer, script_buffer);
 
     // One thing our pregeneration process obviously leaves out is the pokemon data.
     // so let's add that in now.
