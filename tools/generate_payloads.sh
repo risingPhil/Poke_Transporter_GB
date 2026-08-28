@@ -57,6 +57,9 @@ determine_base_script(){
 	esac
 }
 
+# fail the script if any command fails
+set -e
+
 mkdir -p $RAW_PAYLOAD_DIR
 mkdir -p $BPS_PATCH_DIR
 tools/gba-payload-generator/gba-payload-generator $RSEFRLG_BIN_PATH $RAW_PAYLOAD_DIR
