@@ -53,6 +53,8 @@ extern "C"
 // So we can pack this data into a single byte.
 #define PACK_PATCH_KEY(game, lang, version) (((game) << 5) | ((lang) << 2) | (version))
 
+#define SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX 0xFF
+
 typedef struct PatchFileTableEntry
 {
     u8 key;
@@ -62,14 +64,14 @@ typedef struct PatchFileTableEntry
 // We only need to have a single map of the patch files, because the order and size of the section30 and script patches are exactly the same.
 static constexpr PatchFileTableEntry patchFileTable[] =
 {
-    { PACK_PATCH_KEY(MAP_RUBY, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_0 },
+    { PACK_PATCH_KEY(MAP_RUBY, MAP_ENGLISH, VERS_1_0), SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX },
     { PACK_PATCH_KEY(MAP_RUBY, MAP_ENGLISH, VERS_1_2), (u8)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_2 },
     { PACK_PATCH_KEY(MAP_RUBY, MAP_ENGLISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_1 },
     { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_ENGLISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_ENGLISH_1_1 },
     { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_ENGLISH, VERS_1_2), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_ENGLISH_1_2 },
     { PACK_PATCH_KEY(MAP_SAPPHIRE, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_SAPPHIRE_ENGLISH_1_0 },
-    { PACK_PATCH_KEY(MAP_EMERALD, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_EMERALD_ENGLISH_1_0 },
-    { PACK_PATCH_KEY(MAP_FIRERED, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_FIRERED_ENGLISH_1_0 },
+    { PACK_PATCH_KEY(MAP_EMERALD, MAP_ENGLISH, VERS_1_0), SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX },
+    { PACK_PATCH_KEY(MAP_FIRERED, MAP_ENGLISH, VERS_1_0), SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX },
     { PACK_PATCH_KEY(MAP_FIRERED, MAP_ENGLISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_FIRERED_ENGLISH_1_1 },
     { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_ENGLISH, VERS_1_0), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_ENGLISH_1_0 },
     { PACK_PATCH_KEY(MAP_LEAFGREEN, MAP_ENGLISH, VERS_1_1), (u8)Script_patchesFiles::SCRIPT_LEAFGREEN_ENGLISH_1_1 },
@@ -277,7 +279,7 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
     u8 decompressionBuffer[DEFAULT_CHUNK_SIZE];
     u8 tempBuffer[4096];
     u32 gamePatchFile;
-    u32 specificPatchFile;
+    u32 specificPatchFile = (u8)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_0;
     u32 patchFileSize;
     u8 *patchBuffer;
 
@@ -327,13 +329,23 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
     bps_patch(section30Buffer, tempBuffer, patchBuffer, patchFileSize);
     free(patchBuffer);
 
-    // now turn the english <gametype> payload into the specific language payload.
-    // the result will be stored back in section30Buffer
-    patchFileSize = section30PatchesReader.getFileSize(specificPatchFile);
-    patchBuffer = (u8*)malloc(patchFileSize);
-    section30PatchesReader.readFile(specificPatchFile, patchBuffer);
-    bps_patch(tempBuffer, section30Buffer, patchBuffer, patchFileSize);
-    free(patchBuffer);
+    // We shouldn't attempt to apply the same base payload patch twice.
+    // that's what the magic SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX value is for.
+    if(specificPatchFile != SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX)
+    {
+        // now turn the english <gametype> payload into the specific language payload.
+        // the result will be stored back in section30Buffer
+        patchFileSize = section30PatchesReader.getFileSize(specificPatchFile);
+        patchBuffer = (u8*)malloc(patchFileSize);
+        section30PatchesReader.readFile(specificPatchFile, patchBuffer);
+        bps_patch(tempBuffer, section30Buffer, patchBuffer, patchFileSize);
+        free(patchBuffer);
+    }
+    else
+    {
+        // no specific patch file, so just copy the tempBuffer back to section30Buffer
+        memcpy(section30Buffer, tempBuffer, 0x1000);
+    }
 
     // now do the same with scriptBuffer
     memset(scriptBuffer, 0, MG_SCRIPT_SIZE);
@@ -346,11 +358,18 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
     bps_patch(scriptBuffer, tempBuffer, patchBuffer, patchFileSize);
     free(patchBuffer);
 
-    patchFileSize = scriptPatchesReader.getFileSize(specificPatchFile);
-    patchBuffer = (u8*)malloc(patchFileSize);
-    scriptPatchesReader.readFile(specificPatchFile, patchBuffer);
-    bps_patch(tempBuffer, scriptBuffer, patchBuffer, patchFileSize);
-    free(patchBuffer);
+    if(specificPatchFile != SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX)
+    {
+        patchFileSize = scriptPatchesReader.getFileSize(specificPatchFile);
+        patchBuffer = (u8*)malloc(patchFileSize);
+        scriptPatchesReader.readFile(specificPatchFile, patchBuffer);
+        bps_patch(tempBuffer, scriptBuffer, patchBuffer, patchFileSize);
+        free(patchBuffer);
+    }
+    else
+    {
+        memcpy(scriptBuffer, tempBuffer, MG_SCRIPT_SIZE);
+    }
 
     patchBuffer = nullptr;
 }

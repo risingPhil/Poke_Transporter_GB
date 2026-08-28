@@ -61,6 +61,25 @@ int ptr_dex_seen_caught;
 int ptr_index;
 int ptr_pkmn_offset;
 
+static const char* getGameName(u32 gamecode)
+{
+    switch (gamecode)
+    {
+    case RUBY_ID:
+        return "Ruby";
+    case SAPPHIRE_ID:
+        return "Sapphire";
+    case FIRERED_ID:
+        return "FireRed";
+    case LEAFGREEN_ID:
+        return "LeafGreen";
+    case EMERALD_ID:
+        return "Emerald";
+    default:
+        return "Unknown";
+    }
+}
+
 mystery_gift_script::mystery_gift_script(u8 *save_section_30_buffer, u8 *mg_script_buffer)
     : curr_mg_index(NPC_LOCATION_OFFSET)
     , curr_section30_index(0)
@@ -296,44 +315,11 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     // const byte track_unused[] = {0xBC, 0x00, 0xBD, 0x7E, 0xC4, 0x00, 0xBE, 0x53, 0xBF, 0x40, 0xD4, 0x24, 0x70, 0x8C, 0xD4, 0x98, 0x32, 0x86, 0xD4, 0x86, 0x30, 0x86, 0xD4, 0x86, 0xD4, 0x86, 0xD4, 0x86, 0x2D, 0x86, 0xD4, 0x86, 0xD4, 0x86, 0xD4, 0x85, 0xB1};
     // songLooker.add_track(track_unused, sizeof(track_unused));
 
-#if ENABLE_PKMN_INSERTION
-    u8 dex_nums[MAX_PKMN_IN_BOX] = {};
-
-    // placement new is required to run the constructor of PokemonTables for the decompressed_store's instance
-    // it won't get called automatically because it's part of the union (and neither will the destructor)
-    new (&decompressed_store.tables.data) PokemonTables();
-
-    // TODO make it so that the table is added here(?)
-    box->setTable(&decompressed_store.tables.data);
-    box->convertAll();
-    for (int i = 0; i < MAX_PKMN_IN_BOX; i++) // Add in the Pokemon data
-    {
-        Gen3Pokemon *curr_pkmn = box->getGen3Pokemon(i);
-        if (curr_pkmn->isValid)
-        {
-            for (int j = 0; j < POKEMON_SIZE; j++)
-            {
-                *(save_section_30 + curr_section30_index + j) = curr_pkmn->dataArrayPtr[j];
-            }
-            // memcpy(save_section_30 + curr_section30_index, curr_pkmn->dataArrayPtr, POKEMON_SIZE);
-
-            curr_section30_index += POKEMON_SIZE;
-            dex_nums[i] = curr_pkmn->getSpeciesIndexNumber();
-        }
-        else
-        {
-            curr_section30_index += POKEMON_SIZE;
-        }
-    }
-
-    // Add in the dex numbers
-    memcpy(save_section_30 + curr_section30_index, dex_nums, MAX_PKMN_IN_BOX);
-#else
-    printf("[mystery_gift_builder]: Pokémon insertion point at save_section_30 offset 0x%08X\n", curr_section30_index);
+    // printf("[mystery_gift_builder]: Pokémon insertion point at save_section_30 offset 0x%08X\n", curr_section30_index);
 
     memset(save_section_30 + curr_section30_index, 0, (MAX_PKMN_IN_BOX * POKEMON_SIZE) + MAX_PKMN_IN_BOX);
     curr_section30_index += (MAX_PKMN_IN_BOX * POKEMON_SIZE);
-#endif
+
     // dex numbers:
     curr_section30_index += MAX_PKMN_IN_BOX;
 
@@ -852,8 +838,9 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     mg_script_size = curr_mg_index;
     section30_size = curr_section30_index;
 
-    printf("Mystery Gift Script Size: %d bytes\n", mg_script_size);
-    printf("Mystery Gift Section 30 Size: %d bytes\n", section30_size);
+    printf("Mystery Gift payload generated for %s, lang %c, revision %d:\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
+    printf("\tScript Size: %d bytes\n", mg_script_size);
+    printf("\tSection 30 Size: %d bytes\n", section30_size);
     assert(curr_mg_index <= MG_SCRIPT_SIZE); // Assert that the script is not too large
     assert(curr_section30_index <= 0x4096);   // Assert that the script
 };
