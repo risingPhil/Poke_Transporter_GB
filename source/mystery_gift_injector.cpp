@@ -195,7 +195,7 @@ static void pickPatchFiles(u32 &gamePatchFile, u32 &specificPatchFile)
             simplifiedGameCode = MAP_RUBY;
             break;
         case SAPPHIRE_ID:
-            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_SAPPHIRE_ENGLISH_1_0;
+            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_0;
             simplifiedGameCode = MAP_SAPPHIRE;
             break;
         case FIRERED_ID:
@@ -203,7 +203,7 @@ static void pickPatchFiles(u32 &gamePatchFile, u32 &specificPatchFile)
             simplifiedGameCode = MAP_FIRERED;
             break;
         case LEAFGREEN_ID:
-            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_LEAFGREEN_ENGLISH_1_0;
+            gamePatchFile = (u32)Script_patchesFiles::SCRIPT_FIRERED_ENGLISH_1_0;
             simplifiedGameCode = MAP_LEAFGREEN;
             break;
         case EMERALD_ID:

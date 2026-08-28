@@ -215,7 +215,7 @@ static void guardAgainstFileSpanningChunks(ContainerMetadata &meta)
     {
         return;
     }
-    unsigned remainingChunkSize = meta.chunkSize;
+    uint16_t remainingChunkSize = meta.chunkSize;
     unsigned dummyNum = 0;
 
     for(auto it = meta.entries.begin(); it != meta.entries.end(); ++it)

@@ -23,6 +23,40 @@ create_patch(){
     flips --create --bps $1 $2 $3
 }
 
+determine_base_section30(){
+	case "$1" in
+		*ruby*|*sapphire*)
+			printf '%s\n' "section30_ruby_english_1_0.bin"
+			;;
+		*emerald*)
+			printf '%s\n' "section30_emerald_english_1_0.bin"
+			;;
+		*firered*|*leafgreen*)
+			printf '%s\n' "section30_firered_english_1_0.bin"
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+determine_base_script(){
+	case "$1" in
+		*ruby*|*sapphire*)
+			printf '%s\n' "script_ruby_english_1_0.bin"
+			;;
+		*emerald*)
+			printf '%s\n' "script_emerald_english_1_0.bin"
+			;;
+		*firered*|*leafgreen*)
+			printf '%s\n' "script_firered_english_1_0.bin"
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
 mkdir -p $RAW_PAYLOAD_DIR
 mkdir -p $BPS_PATCH_DIR
 tools/gba-payload-generator/gba-payload-generator $RSEFRLG_BIN_PATH $RAW_PAYLOAD_DIR
@@ -31,26 +65,21 @@ tools/gba-payload-generator/gba-payload-generator $RSEFRLG_BIN_PATH $RAW_PAYLOAD
 cp $RAW_PAYLOAD_DIR/script_$ABSOLUTE_BASE_VARIANT to_compress/
 cp $RAW_PAYLOAD_DIR/section30_$ABSOLUTE_BASE_VARIANT to_compress/
 
-# establish patches to transform the english ruby payloads first
-# into the other games' english payloads
-# This is done because I saw that various patches ended up 500 bytes or more
+
+# First generate base payloads patches for the other games. We only need 2:
+# Convert from Ruby to Emerald
+# Convert from Ruby to FireRed
 #
-# Then, generate patches for the other languages/versions based on this specific base.
-# So to obtain the final non-english version in PTGB, you'll have to apply 2 patches.
+# All the language specific ones can be based on those 3 variants (english included)
+create_patch "$RAW_PAYLOAD_DIR/script_ruby_english_1_0.bin" "$RAW_PAYLOAD_DIR/script_emerald_english_1_0.bin" "$BPS_PATCH_DIR/script_emerald_english_1_0.bps"
+create_patch "$RAW_PAYLOAD_DIR/script_ruby_english_1_0.bin" "$RAW_PAYLOAD_DIR/script_firered_english_1_0.bin" "$BPS_PATCH_DIR/script_firered_english_1_0.bps"
+create_patch "$RAW_PAYLOAD_DIR/section30_ruby_english_1_0.bin" "$RAW_PAYLOAD_DIR/section30_emerald_english_1_0.bin" "$BPS_PATCH_DIR/section30_emerald_english_1_0.bps"
+create_patch "$RAW_PAYLOAD_DIR/section30_ruby_english_1_0.bin" "$RAW_PAYLOAD_DIR/section30_firered_english_1_0.bin" "$BPS_PATCH_DIR/section30_firered_english_1_0.bps"
+
+# Generate patches for every game and language variant. Each variant is based on
+# the smallest appropriate English game-family payload.
 for i in "${games[@]}"
 do
-	gamebase_script_filename="script_${i}_english_1_0.bin"
-	gamebase_script_patch_file=${gamebase_script_filename%.*}.bps
-	gamebase_section30_filename="section30_${i}_english_1_0.bin"
-	gamebase_section30_patch_file=${gamebase_section30_filename%.*}.bps
-	gamebase_script_path="$RAW_PAYLOAD_DIR/$gamebase_script_filename"
-	gamebase_section30_path="$RAW_PAYLOAD_DIR/$gamebase_section30_filename"
-	
-	create_patch "$RAW_PAYLOAD_DIR/script_$ABSOLUTE_BASE_VARIANT" "$gamebase_script_path" "$BPS_PATCH_DIR/$gamebase_script_patch_file"
-	create_patch "$RAW_PAYLOAD_DIR/section30_$ABSOLUTE_BASE_VARIANT" "$gamebase_section30_path" "$BPS_PATCH_DIR/$gamebase_section30_patch_file"
-	
-	# Now generate the non-english patches
-	# based on the gamebase_script_filename and gamebase_section30_filename
 	for j in "${langs[@]}"
 	do
 		specific_script_identifier="script_${i}_${j}*"
@@ -59,27 +88,31 @@ do
 		find $RAW_PAYLOAD_DIR -name $specific_script_identifier | while read filename; do
 			file_basename=$(basename $filename)
 			patch_file=${file_basename%.*}.bps
+			base_filename=$(determine_base_script "$filename") || exit 1
+			base_path="$RAW_PAYLOAD_DIR/$base_filename"
 
-			#avoid diffing with itself
+			# avoid replacing base payload patch files created above.
 			if [[ -f "$BPS_PATCH_DIR/$patch_file" ]]; then
 				continue
 			fi
 			
-			echo "Creating patch for $filename based on $gamebase_script_path"
-			create_patch "$gamebase_script_path" "$filename" "$BPS_PATCH_DIR/$patch_file"
+			echo "Creating patch for $filename based on $base_path"
+			create_patch "$base_path" "$filename" "$BPS_PATCH_DIR/$patch_file"
 		done
 		
 		find $RAW_PAYLOAD_DIR -name $specific_section30_identifier | while read filename; do
 			file_basename=$(basename $filename)
 			patch_file=${file_basename%.*}.bps
+			base_filename=$(determine_base_section30 "$filename") || exit 1
+			base_path="$RAW_PAYLOAD_DIR/$base_filename"
 
-			#avoid diffing with itself
+			# avoid replacing base payload patch files created above.
 			if [[ -f "$BPS_PATCH_DIR/$patch_file" ]]; then
 				continue
 			fi
 			
-			echo "Creating patch for $filename based on $gamebase_section30_path"
-			create_patch "$gamebase_section30_path" "$filename" "$BPS_PATCH_DIR/$patch_file"
+			echo "Creating patch for $filename based on $base_path"
+			create_patch "$base_path" "$filename" "$BPS_PATCH_DIR/$patch_file"
 		done
 	done
 done
