@@ -19,6 +19,11 @@
 	//     const uint8_t *patch, // r2
 	//     size_t patch_size     // r3
 	// )
+    //
+    // EDIT: This implementation was modified to deal with trimmed BPS patches we generated.
+    // These  eliminate the CRC footer (12 bytes) and magic string header (4 bytes)
+    // You can find the original implementation that doesn't rely on that trimmed variant on commit 3ed33fa.
+    //
        	.thumb_func
 bps_patch:
 
@@ -36,11 +41,9 @@ bps_patch:
 	.set	sSRC_BASE, 0		// Stack: Offset to target
 	.set	sOUT_BASE, 4			// Stack:  Pointer to the source data
 	.set	sPATEND, 8
-	subs	r3, r3, #12		// end = patch + patch_size - 12
 	adds	r3, r3, PAT
 	push	{r0, r1, r3, r4-r7, lr}		// Save registers
 	mov	hTGTOFF, OUT
-	adds	PAT, PAT, #4		// Skip header
 	movs	ACTLEN, #3		// Set OUTOFF to 3 as a temp loop counter
 .Lbps_patch.decode_loop:		// On Thumb, a loop is slightly smaller.
 	bl	.Ldecode		// source_size, target_size, metadata_size

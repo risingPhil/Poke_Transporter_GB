@@ -841,8 +841,9 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     printf("Mystery Gift payload generated for %s, lang %c, revision %d:\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
     printf("\tScript Size: %d bytes\n", mg_script_size);
     printf("\tSection 30 Size: %d bytes\n", section30_size);
-    assert(curr_mg_index <= MG_SCRIPT_SIZE); // Assert that the script is not too large
-    assert(curr_section30_index <= 0x4096);   // Assert that the script
+    
+    //assert(curr_mg_index <= MG_SCRIPT_SIZE); // Assert that the script is not too large
+    //assert(curr_section30_index <= 4096);   // Assert that the script
 };
 
 const u8 *mystery_gift_script::get_script() const

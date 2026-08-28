@@ -15,7 +15,6 @@
 #include "section30_ruby_english_1_0_lz10_bin.h"
 #include "section30_patches_chunk0_lz10_bin.h"
 #include "section30_patches_chunk1_lz10_bin.h"
-#include "section30_patches_chunk2_lz10_bin.h"
 #include <cstdlib>
 #include <cstring>
 
@@ -285,8 +284,7 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
 
     const u8* section30PatchesChunkList[] = {
         section30_patches_chunk0_lz10_bin,
-        section30_patches_chunk1_lz10_bin,
-        section30_patches_chunk2_lz10_bin
+        section30_patches_chunk1_lz10_bin
     };
 
     const u8* scriptPatchesChunkList[] = {
