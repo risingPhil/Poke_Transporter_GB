@@ -317,10 +317,11 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
 
     // printf("[mystery_gift_builder]: Pokémon insertion point at save_section_30 offset 0x%08X\n", curr_section30_index);
 
+    // carve/zero out section for pokémon insertion. This will be done at runtime by mystery_gift_injector.cpp
     memset(save_section_30 + curr_section30_index, 0, (MAX_PKMN_IN_BOX * POKEMON_SIZE) + MAX_PKMN_IN_BOX);
     curr_section30_index += (MAX_PKMN_IN_BOX * POKEMON_SIZE);
 
-    // dex numbers:
+    // compensate for dex numbers:
     curr_section30_index += MAX_PKMN_IN_BOX;
 
     // insert text
