@@ -163,7 +163,6 @@ static void generatePayloadsForLanguage(const char* outputPath, char languageCod
     for(size_t i = 0; i < gbaRomDataArraySize; ++i)
     {
         generateOutputPath(outputPathBuffer, outputPath, "section30", gbaRomDataArray + i);
-        printf("Generating %zu:%s...\n", i, outputPathBuffer);
 
         builder.build_script(rsefrlgTableReader, gbaRomDataArray[i], gen3CharsetEng, nullptr, true);
 
@@ -182,7 +181,6 @@ static void generatePayloadsForLanguage(const char* outputPath, char languageCod
         fclose(section30OutputFile);
 
         generateOutputPath(outputPathBuffer, outputPath, "script", gbaRomDataArray + i);
-        printf("Generating %zu:%s...\n", i, outputPathBuffer);
         FILE *mgScriptOutputFile = fopen(outputPathBuffer, "wb");
         if (!mgScriptOutputFile)
         {

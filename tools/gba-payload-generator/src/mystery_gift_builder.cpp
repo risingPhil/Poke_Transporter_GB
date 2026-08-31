@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
 
 #define MG_SCRIPT false
 #define S30_SCRIPT true
@@ -839,11 +840,19 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     mg_script_size = curr_mg_index;
     section30_size = curr_section30_index;
 
-    printf("Mystery Gift payload generated for %s, lang %c, revision %d:\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
-    printf("\tScript Size: %d bytes\n", mg_script_size);
-    printf("\tSection 30 Size: %d bytes\n", section30_size);
-    assert(curr_mg_index <= MG_SCRIPT_SIZE); // Assert that the script is not too large
-    assert(curr_section30_index <= 0x4096);   // Assert that the script
+    if(curr_mg_index > MG_SCRIPT_SIZE)
+    {
+        fprintf(stderr, "[gba-payload-generator]: Error: Mystery Gift Script is too large for %s, lang %c, revision %d!\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
+        fprintf(stderr, "Script size: %d bytes, max size: %d bytes\n", curr_mg_index, MG_SCRIPT_SIZE);
+        exit(1);
+    }
+
+    if(curr_section30_index > 4096)
+    {
+        fprintf(stderr, "[gba-payload-generator]: Error: Section30 is too large for %s, lang %c, revision %d!\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
+        fprintf(stderr, "Section30 size: %d bytes, max size: %d bytes\n", curr_section30_index, 4096);
+        exit(1);
+    }
 };
 
 const u8 *mystery_gift_script::get_script() const
