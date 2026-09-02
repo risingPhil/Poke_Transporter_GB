@@ -585,7 +585,7 @@ bool run_conditional(int index)
         return false;
 
     case CMD_START_LINK:
-        load_flex_background(FLEXBG_FENNEL, 3);
+        load_flex_background(FBG_Fennel, 3);
         link_animation_state(STATE_CONNECTION);
         box.reset();
         if (g_debug_options.ignore_link_cable)
@@ -688,7 +688,7 @@ bool run_conditional(int index)
             boxDataArray);
         }
         reload_textbox_background();
-        load_flex_background(FLEXBG_FENNEL, 2);
+        load_flex_background(FBG_Fennel, 2);
         link_animation_state(0);
 
         return true;
@@ -700,15 +700,15 @@ bool run_conditional(int index)
     case CMD_BACK_TO_MENU:
         set_text_exit();
         REG_BG1HOFS = 0;
-        load_flex_background(FLEXBG_FENNEL, 3);
+        load_flex_background(FBG_Fennel, 3);
         return true;
 
     case CMD_SHOW_PROF:
-        // load_flex_background(FLEXBG_FENNEL, 3);
+        // load_flex_background(FBG_Fennel, 3);
         return true;
 
     case CMD_HIDE_PROF:
-        // load_flex_background(FLEXBG_FENNEL, 3);
+        // load_flex_background(FBG_Fennel, 3);
         return true;
 
     case CMD_SET_TUTOR_TRUE:
@@ -778,7 +778,7 @@ bool run_conditional(int index)
 
     case CMD_BOX_MENU:
         hide_textbox();
-        ret = (box_viewer.box_main(&box) == CONFIRM_BUTTON);
+        ret = (box_viewer.box_main(&box, globalLinkCable.vers) == CONFIRM_BUTTON);
         show_textbox();
         return ret;
 

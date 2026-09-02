@@ -210,14 +210,15 @@ void LinkConnection::loadPayloadByROM(GameBoyROM rom)
   }
 
   LZ77UnCompWram(compressed_rom_values, gb_rom_values_buffer);
-  pccsROMptr = &gb_rom_values_buffer[vers - 1];
+  pccsROMptr = &gb_rom_values_buffer[vers];
 }
 
 void LinkConnection::loadCurrGameFromChecksum()
 {
-  if (((dataOutBuffer[0] + dataOutBuffer[1]) & 0x7F) != dataOutBuffer[3])
+  if (((dataOutBuffer[0] + dataOutBuffer[1]) & 0x7F) != dataOutBuffer[2])
   {
     currROM = GB_ROM_ERROR;
+    return;
   };
 
   int start = RED_JP_v0;
@@ -309,12 +310,12 @@ void LinkConnection::startConnection(LinkState startState)
     exitState = CLOCK_ACQUIRE;
 
     REG_TM3D = -DISCOVERY_TIMER_MIN;
-    REG_TM3CNT = TM_FREQ_1024 | TM_ENABLE;
+    REG_TM3CNT = TM_FREQ_1024 | TM_IRQ | TM_ENABLE;
     break;
   case PACKET_EXCHANGE:
     REG_TM3D = -0x0040;
     // REG_TM3D = -0x4000 / 60;
-    REG_TM3CNT = TM_FREQ_1024 | TM_ENABLE;
+    REG_TM3CNT = TM_FREQ_1024 | TM_IRQ | TM_ENABLE;
     break;
   default:
     break;
@@ -457,7 +458,7 @@ void LinkConnection::handleStateLogic()
     nextOutData = 0x01;
     REG_TM3D = -(DISCOVERY_TIMER_MIN +
                  (globalStateCounter & DISCOVERY_TIMER_PHASE_MASK));
-    REG_TM3CNT = TM_FREQ_1024 | TM_ENABLE;
+    REG_TM3CNT = TM_FREQ_1024 | TM_IRQ | TM_ENABLE;
     exitState = CLOCK_ACQUIRE;
     break;
 
