@@ -252,6 +252,19 @@ static void pickPatchFiles(u32 &gamePatchFile, u32 &specificPatchFile)
 }
 
 /**
+ * @brief This helper function will apply the BPS patch with index patchFileIndex stored in reader
+ * to the srcBuffer data and store the result in dstBuffer. srcBuffer remains untouched.
+ */
+static void apply_bps_patch_to_buffer(FileContainerReader &reader, u8* dstBuffer, u8 *srcBuffer, u32 patchFileIndex)
+{
+    const u32 patchFileSize = reader.getFileSize(patchFileIndex);
+    u8 *patchBuffer = (u8*)malloc(patchFileSize);
+    reader.readFile(patchFileIndex, patchBuffer);
+    bps_patch(srcBuffer, dstBuffer, patchBuffer, patchFileSize);
+    free(patchBuffer);
+}
+
+/**
  * @brief This function reconstructs the pregenerated payload for section30 and the script buffer.
  * The way it works is this:
  * - We have stored the english ruby 1.0 payload (section30 + scriptbuffer) in compressed form.
@@ -280,8 +293,6 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
     u8 tempBuffer[4096];
     u32 gamePatchFile;
     u32 specificPatchFile = (u8)Script_patchesFiles::SCRIPT_RUBY_ENGLISH_1_0;
-    u32 patchFileSize;
-    u8 *patchBuffer;
 
     const u8* section30PatchesChunkList[] = {
         section30_patches_chunk0_lz10_bin,
@@ -324,11 +335,7 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
 
     // turn the base (english) payload into the english <gametype> payload.
     // the result will be stored in tempBuffer
-    patchFileSize = section30PatchesReader.getFileSize(gamePatchFile);
-    patchBuffer = (u8*)malloc(patchFileSize);
-    section30PatchesReader.readFile(gamePatchFile, patchBuffer);
-    bps_patch(section30Buffer, tempBuffer, patchBuffer, patchFileSize);
-    free(patchBuffer);
+    apply_bps_patch_to_buffer(section30PatchesReader, tempBuffer, section30Buffer, gamePatchFile);
 
     // We shouldn't attempt to apply the same base payload patch twice.
     // that's what the magic SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX value is for.
@@ -336,11 +343,7 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
     {
         // now turn the english <gametype> payload into the specific language payload.
         // the result will be stored back in section30Buffer
-        patchFileSize = section30PatchesReader.getFileSize(specificPatchFile);
-        patchBuffer = (u8*)malloc(patchFileSize);
-        section30PatchesReader.readFile(specificPatchFile, patchBuffer);
-        bps_patch(tempBuffer, section30Buffer, patchBuffer, patchFileSize);
-        free(patchBuffer);
+        apply_bps_patch_to_buffer(section30PatchesReader, section30Buffer, tempBuffer, specificPatchFile);
     }
     else
     {
@@ -354,26 +357,16 @@ static void __attribute__((noinline)) reconstruct_pregenerated_payloads(u8* sect
     LZ77UnCompWram(script_ruby_english_1_0_lz10_bin, scriptBuffer);
     scriptPatchesReader.init(decompressionBuffer, DEFAULT_CHUNK_SIZE);
 
-    patchFileSize = scriptPatchesReader.getFileSize(gamePatchFile);
-    patchBuffer = (u8*)malloc(patchFileSize);
-    scriptPatchesReader.readFile(gamePatchFile, patchBuffer);
-    bps_patch(scriptBuffer, tempBuffer, patchBuffer, patchFileSize);
-    free(patchBuffer);
+    apply_bps_patch_to_buffer(scriptPatchesReader, tempBuffer, scriptBuffer, gamePatchFile);
 
     if(specificPatchFile != SKIP_SPECIFIC_PAYLOAD_PATCH_INDEX)
     {
-        patchFileSize = scriptPatchesReader.getFileSize(specificPatchFile);
-        patchBuffer = (u8*)malloc(patchFileSize);
-        scriptPatchesReader.readFile(specificPatchFile, patchBuffer);
-        bps_patch(tempBuffer, scriptBuffer, patchBuffer, patchFileSize);
-        free(patchBuffer);
+        apply_bps_patch_to_buffer(scriptPatchesReader, scriptBuffer, tempBuffer, specificPatchFile);
     }
     else
     {
         memcpy(scriptBuffer, tempBuffer, MG_SCRIPT_SIZE);
     }
-
-    patchBuffer = nullptr;
 }
 
 
