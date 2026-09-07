@@ -1258,6 +1258,10 @@ bool LinkConnection::LinkCommand_InitalizeConnection(bool waitForCompletion)
   {
     return true;
   }
+  else if (!linkSPI->isActive())
+  {
+    return false;
+  }
 
   PTGB_MGBA_INFO("Running command: InitalizeConnection");
 
@@ -1276,6 +1280,10 @@ bool LinkConnection::LinkCommand_ReloadCurrentBox(bool waitForCompletion)
   if (g_debug_options.ignore_link_cable)
   {
     return true;
+  }
+  else if (!linkSPI->isActive())
+  {
+    return false;
   }
   
   PTGB_MGBA_INFO("Running command: ReloadCurrentBox");
@@ -1297,6 +1305,10 @@ bool LinkConnection::LinkCommand_TransferPokemon(int boxNumber, byte removalArra
   if (g_debug_options.ignore_link_cable)
   {
     return true;
+  }
+  else if (!linkSPI->isActive())
+  {
+    return false;
   }
 
   int maxBoxes = 0;
@@ -1351,6 +1363,10 @@ bool LinkConnection::LinkCommand_SoftReset(bool waitForCompletion)
   {
     return true;
   }
+  else if (!linkSPI->isActive())
+  {
+    return false;
+  }
 
   PTGB_MGBA_INFO("Running command: SoftReset");
 
@@ -1371,6 +1387,10 @@ bool LinkConnection::LinkCommand_ModifySRAMAccess(bool enableSRAM, byte SRAMbank
   if (g_debug_options.ignore_link_cable)
   {
     return true;
+  }
+  else if (!linkSPI->isActive())
+  {
+    return false;
   }
   
   if (SRAMbank > 3)
@@ -1405,6 +1425,10 @@ bool LinkConnection::LinkCommand_RunSecondaryPayload(byte payload[], int payload
   {
     return true;
   }
+  else if (!linkSPI->isActive())
+  {
+    return false;
+  }
 
   PTGB_MGBA_INFO("Running command: RunSecondaryPayload");
 
@@ -1426,6 +1450,10 @@ bool LinkConnection::LinkCommand_ReadMemorySection(u32 dataPointer, byte outArra
   if (g_debug_options.ignore_link_cable)
   {
     return true;
+  }
+  else if (!linkSPI->isActive())
+  {
+    return false;
   }
 
   if (dataPointer > 0xFFFF)
