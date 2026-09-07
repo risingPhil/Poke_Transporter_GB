@@ -119,6 +119,7 @@ void LinkConnection::setup(const u16 *debug_charset)
   link_cable_memory_section_index = 0;
   link_cable_array_index = 0;
   writeBufferOffset = 0;
+  dataOutBufferCurrIndex = 0;
 
   linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
   linkSPI->setWaitModeActive(false);
