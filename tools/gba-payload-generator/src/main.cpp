@@ -162,6 +162,9 @@ static void generatePayloadsForLanguage(const char* outputPath, char languageCod
 
     for(size_t i = 0; i < gbaRomDataArraySize; ++i)
     {
+        memset(section30Buffer, 0, FLASH_SECTOR_SIZE);
+        memset(mgScriptBuffer, 0, MG_SCRIPT_SIZE);
+
         generateOutputPath(outputPathBuffer, outputPath, "section30", gbaRomDataArray + i);
 
         builder.build_script(rsefrlgTableReader, gbaRomDataArray[i], gen3CharsetEng, nullptr, true);

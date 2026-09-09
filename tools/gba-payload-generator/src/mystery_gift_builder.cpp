@@ -98,6 +98,12 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     std::vector<script_var *> mg_variable_list;
     std::vector<script_var *> sec30_variable_list;
 
+    ptr_call_check_flag = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x08);
+    ptr_box_return = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x0C);
+    ptr_dex_seen_caught = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x0E);
+    ptr_index = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x12);
+    ptr_pkmn_offset = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x14);
+
     asm_var sendMonToPC_ptr(curr_GBA_rom.loc_copyMonToPC + READ_AS_THUMB, sec30_variable_list, &curr_section30_index);
     asm_var returned_box_success_ptr(ptr_box_return, sec30_variable_list, &curr_section30_index);
     asm_var curr_pkmn_index_ptr(ptr_pkmn_offset, sec30_variable_list, &curr_section30_index);
@@ -232,12 +238,6 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     static const byte movementWalkBackArrayRS[6] = {MOVEMENT_ACTION_WALK_FAST_DOWN, MOVEMENT_ACTION_WALK_FAST_RIGHT, MOVEMENT_ACTION_WALK_FAST_DOWN};
     static const byte movementWalkBackArrayFRLG[4] = {MOVEMENT_ACTION_WALK_FAST_DOWN, MOVEMENT_ACTION_WALK_FAST_DOWN};
     static const byte movementWalkBackArrayE[8] = {MOVEMENT_ACTION_WALK_FAST_RIGHT, MOVEMENT_ACTION_WALK_FAST_RIGHT, MOVEMENT_ACTION_WALK_FAST_RIGHT, MOVEMENT_ACTION_WALK_FAST_DOWN};
-
-    ptr_call_check_flag = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x08);
-    ptr_box_return = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x0C);
-    ptr_dex_seen_caught = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x0E);
-    ptr_index = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x12);
-    ptr_pkmn_offset = (curr_GBA_rom.loc_gSpecialVar_0x8000 + 0x14);
 
     switch (curr_GBA_rom.gamecode)
     {
