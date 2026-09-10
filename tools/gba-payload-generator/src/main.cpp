@@ -169,6 +169,12 @@ static void generatePayloadsForLanguage(const char* outputPath, char languageCod
 
         builder.build_script(rsefrlgTableReader, gbaRomDataArray[i], gen3CharsetEng, nullptr, true);
 
+        // strip the injected texts again for compression sake.
+        // doing it this way preserves the pointers (because the text had been temporarily injected)
+        // but it does remove the potential for storing texts more than once in the patch files
+        // because of the FileDataContainer chunks.
+        builder.strip_injected_texts();
+
         FILE *section30OutputFile = fopen(outputPathBuffer, "wb");
         if (!section30OutputFile)
         {

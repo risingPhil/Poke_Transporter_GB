@@ -1,6 +1,5 @@
 #include "mystery_gift_builder.h"
 #include "UncompressedFileContainerReader.h"
-#include "script_var.h"
 
 #include <vector>
 #include <cassert>
@@ -138,19 +137,18 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     xse_var jumpNotToSide(mg_variable_list, &curr_mg_index);
     xse_var jumpNotToSideFull(mg_variable_list, &curr_mg_index);
 
-    textbox_var textGreet(mg_variable_list, &curr_mg_index);
-    textbox_var textYouMustBe(mg_variable_list, &curr_mg_index);
-    textbox_var textIAm(mg_variable_list, &curr_mg_index);
+    textbox_var textGreet(mg_variable_list, &curr_mg_index, textGreetInsertionPoint);
+    textbox_var textYouMustBe(mg_variable_list, &curr_mg_index, textYouMustBeInsertionPoint);
+    textbox_var textIAm(mg_variable_list, &curr_mg_index, textIAmInsertionPoint);
 
-    textbox_var textReceived(sec30_variable_list, &curr_section30_index);
-    textbox_var textPCFull(sec30_variable_list, &curr_section30_index);
-    textbox_var textThank(sec30_variable_list, &curr_section30_index);
-    textbox_var textTest(sec30_variable_list, &curr_section30_index);
-    textbox_var textWeHere(sec30_variable_list, &curr_section30_index);
-    textbox_var textPCConvo(sec30_variable_list, &curr_section30_index);
-    textbox_var textPCThanks(sec30_variable_list, &curr_section30_index);
-    textbox_var textLookerFull(sec30_variable_list, &curr_section30_index);
-    textbox_var textMoveBox(sec30_variable_list, &curr_section30_index);
+    textbox_var textReceived(sec30_variable_list, &curr_section30_index, textReceivedInsertionPoint);
+    textbox_var textPCFull(sec30_variable_list, &curr_section30_index, textPCFullInsertionPoint);
+    textbox_var textThank(sec30_variable_list, &curr_section30_index, textThankInsertionPoint);
+    textbox_var textWeHere(sec30_variable_list, &curr_section30_index, textWeHereInsertionPoint);
+    textbox_var textPCConvo(sec30_variable_list, &curr_section30_index, textPCConvoInsertionPoint);
+    textbox_var textPCThanks(sec30_variable_list, &curr_section30_index, textPCThanksInsertionPoint);
+    textbox_var textLookerFull(sec30_variable_list, &curr_section30_index, textLookerFullInsertionPoint);
+    textbox_var textMoveBox(sec30_variable_list, &curr_section30_index, textMoveBoxInsertionPoint);
 
     movement_var movementSlowSpin(sec30_variable_list, &curr_section30_index);
     movement_var movementFastSpin(sec30_variable_list, &curr_section30_index);
@@ -840,20 +838,68 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     mg_script_size = curr_mg_index;
     section30_size = curr_section30_index;
 
-    if(curr_mg_index > MG_SCRIPT_SIZE)
+    if(mg_script_size > MG_SCRIPT_SIZE)
     {
         fprintf(stderr, "[gba-payload-generator]: Error: Mystery Gift Script is too large for %s, lang %c, revision %d!\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
-        fprintf(stderr, "Script size: %d bytes, max size: %d bytes\n", curr_mg_index, MG_SCRIPT_SIZE);
+        fprintf(stderr, "Script size: %d bytes, max size: %d bytes\n", mg_script_size, MG_SCRIPT_SIZE);
         exit(1);
     }
 
-    if(curr_section30_index > 4096)
+    if(section30_size > 4096)
     {
         fprintf(stderr, "[gba-payload-generator]: Error: Section30 is too large for %s, lang %c, revision %d!\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
-        fprintf(stderr, "Section30 size: %d bytes, max size: %d bytes\n", curr_section30_index, 4096);
+        fprintf(stderr, "Section30 size: %d bytes, max size: %d bytes\n", section30_size, 4096);
         exit(1);
     }
 };
+
+void mystery_gift_script::strip_injected_texts()
+{
+    u32 removedBytes;
+    u32 totalRemovedBytes;
+
+    TextBoxVarInsertionPoint *scriptTextboxVarInsertionPoints[] = {
+        &textGreetInsertionPoint,
+        &textYouMustBeInsertionPoint,
+        &textIAmInsertionPoint
+    };
+
+    TextBoxVarInsertionPoint *sec30TextboxVarInsertionPoints[] = {
+        &textThankInsertionPoint,
+        &textPCFullInsertionPoint,
+        &textWeHereInsertionPoint,
+        &textPCConvoInsertionPoint,
+        &textPCThanksInsertionPoint,
+        &textLookerFullInsertionPoint,
+        &textMoveBoxInsertionPoint,
+        &textReceivedInsertionPoint
+    };
+
+    printf("[gba-payload-generator]: Stripping injected texts...\n");
+    totalRemovedBytes = 0;
+
+    for(TextBoxVarInsertionPoint *insertionPoint : scriptTextboxVarInsertionPoints)
+    {
+        removedBytes = stripText(mg_script, insertionPoint, mg_script_size, totalRemovedBytes);
+
+        printf("[gba-payload-generator]: Stripped script text at origOffset 0x%08x, curOffset 0x%08x\n", insertionPoint->offset, insertionPoint->offset - totalRemovedBytes);
+        totalRemovedBytes += removedBytes;
+    }
+    mg_script_size -= totalRemovedBytes;
+
+    totalRemovedBytes = 0;
+    for(TextBoxVarInsertionPoint *insertionPoint : sec30TextboxVarInsertionPoints)
+    {
+        removedBytes = stripText(save_section_30, insertionPoint, section30_size, totalRemovedBytes);
+
+        printf("[gba-payload-generator]: Stripped section30 text at origOffset 0x%08x, curOffset 0x%08x\n", insertionPoint->offset, insertionPoint->offset - totalRemovedBytes);
+        totalRemovedBytes += removedBytes;
+    }
+    section30_size -= totalRemovedBytes;
+
+    printf("[gba-payload-generator]: Finished stripping injected texts.\n");
+
+}
 
 const u8 *mystery_gift_script::get_script() const
 {
@@ -1441,4 +1487,15 @@ void mystery_gift_script::add_word(u32 word)
 {
     add_asm(word >> 0);
     add_asm(word >> 16);
+}
+
+u32 mystery_gift_script::stripText(u8 *payloadBuffer, TextBoxVarInsertionPoint *insertionPoint, u32 payloadSize, u32 accumulatedOffsetCorrection)
+{
+    u32 realOffset = insertionPoint->offset - accumulatedOffsetCorrection;
+    u32 realPayloadSize = payloadSize - accumulatedOffsetCorrection;
+
+    const size_t bytesToMove = realPayloadSize - realOffset - insertionPoint->size;
+    memmove(payloadBuffer + realOffset, payloadBuffer + realOffset + insertionPoint->size, bytesToMove);
+
+    return insertionPoint->size;
 }
