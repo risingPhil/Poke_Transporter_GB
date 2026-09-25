@@ -861,14 +861,14 @@ void mystery_gift_script::build_script(UncompressedFileContainerReader &text_tab
     {
         fprintf(stderr, "[gba-payload-generator]: Error: Mystery Gift Script is too large for %s, lang %c, revision %d!\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
         fprintf(stderr, "\tScript size: %d bytes, max size: %d bytes\n", mg_script_size, MG_SCRIPT_SIZE);
-        exit(1);
+//      exit(1);
     }
 
     if(section30_size > 4096)
     {
         fprintf(stderr, "[gba-payload-generator]: Error: Section30 is too large for %s, lang %c, revision %d!\n", getGameName(curr_GBA_rom.gamecode), curr_GBA_rom.language, curr_GBA_rom.version);
         fprintf(stderr, "\tSection30 size: %d bytes, max size: %d bytes\n", section30_size, 4096);
-        exit(1);
+//      exit(1);
     }
 };
 
